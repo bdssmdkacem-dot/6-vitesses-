@@ -9,8 +9,8 @@ class HudBackground extends StatefulWidget {
 }
 class _HudBackgroundState extends State<HudBackground> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  @override void initState(){super.initState();_controller=AnimationController(vsync:this,duration:const Duration(seconds:8));if(widget.animate)_controller.repeat();}
-  @override void didUpdateWidget(covariant HudBackground old){super.didUpdateWidget(old);if(widget.animate&&!old.animate)_controller.repeat();else if(!widget.animate&&old.animate)_controller.stop();}
+  @override void initState(){super.initState();_controller=AnimationController(vsync:this,duration:const Duration(seconds:8));if(widget.animate){_controller.repeat();}}
+  @override void didUpdateWidget(covariant HudBackground old){super.didUpdateWidget(old);if(widget.animate&&!old.animate){_controller.repeat();}else if(!widget.animate&&old.animate){_controller.stop();}}
   @override Widget build(BuildContext context)=>AnimatedBuilder(animation:_controller,builder:(_,__)=>CustomPaint(painter:_BackgroundPainter(widget.theme,_controller.value),child:const SizedBox.expand()));
   @override void dispose(){_controller.dispose();super.dispose();}
 }
