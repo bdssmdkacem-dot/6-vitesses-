@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import '../driving/drive_history.dart';
+import '../driving/drive_history_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../driving/driving_session.dart';
 import '../settings/app_settings.dart';
@@ -13,13 +16,14 @@ import 'widgets/hud_background.dart';
 import 'widgets/speed_gauge.dart';
 
 class HudScreen extends StatefulWidget {
-  const HudScreen({super.key, required this.settings});
+  const HudScreen({super.key, required this.settings, required this.history});
   final AppSettings settings;
+  final DriveHistory history;
   @override
   State<HudScreen> createState() => _HudScreenState();
 }
 
-class _HudScreenState extends State<HudScreen> {
+class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   final _session = DrivingSession();
   final _gpsService = GpsSpeedService();
   final _motionService = MotionSensorService();
@@ -44,8 +48,18 @@ class _HudScreenState extends State<HudScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _enterHud();
     _startSensors();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _enterHud();
+      if (!_session.active && !_gpsService.isStale) return;
+      if (!_session.active) _startSensors();
+    }
   }
 
   Future<void> _enterHud() async {
@@ -112,9 +126,10 @@ class _HudScreenState extends State<HudScreen> {
     });
   }
 
-  void _stopDrive() {
-    _session.stop();
-    setState(() {});
+  Future<void> _stopDrive() async {
+    final record = _session.stop();
+    await history.add(record);
+    if (mounted) setState(() {});
   }
 
   void _settings() {
@@ -138,7 +153,8 @@ class _HudScreenState extends State<HudScreen> {
                 children: HudTheme.all.map((theme) => ChoiceChip(
                   label: Text(theme.name),
                   selected: _theme == theme,
-                  onSelected: (_) {
+                  onSelected: (_) async {
+                    await widget.settings.setTheme(theme);
                     setState(() => _theme = theme);
                     setSheet(() {});
                   },
@@ -150,7 +166,8 @@ class _HudScreenState extends State<HudScreen> {
                 children: HudGaugeStyle.values.map((style) => ChoiceChip(
                   label: Text(style.name.toUpperCase()),
                   selected: _style == style,
-                  onSelected: (_) {
+                  onSelected: (_) async {
+                    await widget.settings.setGauge(style);
                     setState(() => _style = style);
                     setSheet(() {});
                   },
@@ -163,7 +180,8 @@ class _HudScreenState extends State<HudScreen> {
                 children: List.generate(7, (index) => ChoiceChip(
                   label: Text(index == 0 ? 'N' : '$index'),
                   selected: _gear == index,
-                  onSelected: (_) {
+                  onSelected: (_) async {
+                    await widget.settings.setGear(index);
                     setState(() => _gear = index);
                     setSheet(() {});
                   },
@@ -172,7 +190,10 @@ class _HudScreenState extends State<HudScreen> {
               SwitchListTile(
                 title: const Text('Mirror HUD'),
                 value: _mirror,
-                onChanged: (value) => setState(() => _mirror = value),
+                onChanged: (value) async {
+                  await widget.settings.setMirror(value);
+                  setState(() => _mirror = value);
+                },
               ),
               const SizedBox(height: 8),
               FilledButton.icon(
@@ -192,6 +213,11 @@ class _HudScreenState extends State<HudScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _theme = widget.settings.theme;
+    _style = widget.settings.gauge;
+    _mirror = widget.settings.mirror;
+    _gear = widget.settings.gear;
+
     final body = Scaffold(
       backgroundColor: _theme.background,
       body: Stack(
@@ -202,7 +228,7 @@ class _HudScreenState extends State<HudScreen> {
             child: Stack(
               children: [
                 Center(
-                  child: SpeedGauge(speed: _speed, maxSpeed: 240, style: _style, theme: _theme),
+                  child: SpeedGauge(speed: widget.settings.toDisplaySpeed(_speed), maxSpeed: widget.settings.toDisplaySpeed(widget.settings.speedLimit), style: _style, theme: _theme),
                 ),
                 Positioned(
                   left: 18,
@@ -254,7 +280,7 @@ class _HudScreenState extends State<HudScreen> {
                       const SizedBox(width: 18),
                       _Metric('G-FORCE', '$_totalAccel / 9.80665).toStringAsFixed(2) G'),
                       const SizedBox(width: 18),
-                      _Metric('MAX', '$_maxSpeed.toStringAsFixed(0) km/h'),
+                      _Metric('MAX', '${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} ${widget.settings.unit == SpeedUnit.kmh ? 'km/h' : 'mph'}'),
                       if (_session.active) ...[
                         const SizedBox(width: 18),
                         _Metric('TRIP', '$_session.distanceKm.toStringAsFixed(1) km'),
@@ -265,7 +291,9 @@ class _HudScreenState extends State<HudScreen> {
                 Positioned(
                   right: 18,
                   bottom: 14,
-                  child: _Metric('BRAKE MAX', '$_maxBraking.toStringAsFixed(1) m/s²'),
+                  child: Row(children: [
+                    IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DriveHistoryScreen(history: history))), icon: Icon(Icons.history, color: _theme.accent)),
+                    _Metric('BRAKE MAX', '$_maxBraking.toStringAsFixed(1) m/s²'),
                 ),
                 if (!_ready)
                   Center(
@@ -287,6 +315,7 @@ class _HudScreenState extends State<HudScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _gpsWatchdog?.cancel();
     _gpsSub?.cancel();
     _motionSub?.cancel();
