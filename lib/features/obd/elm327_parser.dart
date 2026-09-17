@@ -1,8 +1,6 @@
 class Elm327Parser {
   const Elm327Parser();
 
-  /// Parses one or more ELM327 response lines and extracts standard OBD-II PIDs.
-  /// Supported: 04 engine load, 05 coolant, 0C RPM, 0D speed, 11 throttle.
   ObdPidValues parse(String response) {
     double? rpm;
     double? speed;
@@ -19,14 +17,19 @@ class Elm327Parser {
       switch (pid) {
         case 0x04:
           load = a * 100 / 255;
+          break;
         case 0x05:
           coolant = a - 40.0;
+          break;
         case 0x0C:
           if (i + 3 < bytes.length) rpm = ((a * 256) + b) / 4;
+          break;
         case 0x0D:
           speed = a.toDouble();
+          break;
         case 0x11:
           throttle = a * 100 / 255;
+          break;
       }
     }
     return ObdPidValues(
@@ -40,8 +43,7 @@ class Elm327Parser {
 
   List<int> _hexBytes(String response) {
     final cleaned = response
-        .replaceAll(RegExp(r'[
->]'), ' ')
+        .replaceAll(RegExp(r'[\r\n>]'), ' ')
         .replaceAll(RegExp(r'[^0-9A-Fa-f ]'), ' ');
     return cleaned
         .split(RegExp(r'\s+'))
