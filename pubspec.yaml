@@ -1,0 +1,18 @@
+name: six_vitesses
+description: "6 Vitesses — HUD and driving dashboard for Android."
+publish_to: "none"
+version: 0.1.0+1
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  geolocator: ^14.0.2
+  sensors_plus: ^6.1.1
+  wakelock_plus: ^1.4.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
