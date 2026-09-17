@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'drive_record.dart';
 
 class DrivingSession extends ChangeNotifier {
   bool _active = false;
@@ -66,11 +67,23 @@ class DrivingSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  void stop() {
+  DriveRecord stop() {
+    final started = _startedAt ?? DateTime.now();
     _active = false;
     _timer?.cancel();
     _timer = null;
+    if (_startedAt != null) _elapsed = DateTime.now().difference(started);
+    final record = DriveRecord(
+      startedAt: started,
+      durationSeconds: _elapsed.inSeconds,
+      distanceKm: _distanceKm,
+      averageSpeedKmh: averageSpeed,
+      maxSpeedKmh: _maxSpeed,
+      maxAcceleration: _maxAcceleration,
+      maxBraking: _maxBraking,
+    );
     notifyListeners();
+    return record;
   }
 
   @override
