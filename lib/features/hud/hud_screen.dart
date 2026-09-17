@@ -55,11 +55,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _enterHud();
-      if (!_session.active && !_gpsService.isStale) return;
-      if (!_session.active) _startSensors();
-    }
+    if (state == AppLifecycleState.resumed) _enterHud();
   }
 
   Future<void> _enterHud() async {
@@ -128,7 +124,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
 
   Future<void> _stopDrive() async {
     final record = _session.stop();
-    await history.add(record);
+    await widget.history.add(record);
     if (mounted) setState(() {});
   }
 
@@ -274,16 +270,16 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
                   bottom: 14,
                   child: Row(
                     children: [
-                      _Metric('ACCEL', '$_longitudinalAccel.toStringAsFixed(1) m/s²'),
+                      _Metric('ACCEL', '${_longitudinalAccel.toStringAsFixed(1)} m/s²'),
                       const SizedBox(width: 18),
                       AccelerationBar(value: _longitudinalAccel, theme: _theme),
                       const SizedBox(width: 18),
-                      _Metric('G-FORCE', '$_totalAccel / 9.80665).toStringAsFixed(2) G'),
+                      _Metric('G-FORCE', '${(_totalAccel / 9.80665).toStringAsFixed(2)} G'),
                       const SizedBox(width: 18),
                       _Metric('MAX', '${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} ${widget.settings.unit == SpeedUnit.kmh ? 'km/h' : 'mph'}'),
                       if (_session.active) ...[
                         const SizedBox(width: 18),
-                        _Metric('TRIP', '$_session.distanceKm.toStringAsFixed(1) km'),
+                        _Metric('TRIP', '${_session.distanceKm.toStringAsFixed(1)} km'),
                       ],
                     ],
                   ),
@@ -291,9 +287,17 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
                 Positioned(
                   right: 18,
                   bottom: 14,
-                  child: Row(children: [
-                    IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DriveHistoryScreen(history: history))), icon: Icon(Icons.history, color: _theme.accent)),
-                    _Metric('BRAKE MAX', '$_maxBraking.toStringAsFixed(1) m/s²'),
+                  child: Row(
+                    children: [
+                      if (!_session.active)
+                        IconButton(
+                          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DriveHistoryScreen(history: widget.history))),
+                          icon: Icon(Icons.history, color: _theme.accent),
+                          tooltip: 'History',
+                        ),
+                      _Metric('BRAKE MAX', '${_maxBraking.toStringAsFixed(1)} m/s²'),
+                    ],
+                  ),
                 ),
                 if (!_ready)
                   Center(
