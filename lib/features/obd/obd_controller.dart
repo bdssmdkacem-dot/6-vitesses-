@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'elm327_parser.dart';
 import 'obd_models.dart';
 import 'obd_service.dart';
 
@@ -37,10 +36,7 @@ class ObdController {
 
   Future<void> startPolling() async {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      // The transport/session owns command serialization. This timer is only
-      // the future polling boundary; GPS remains the fallback source.
-    });
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {});
   }
 
   Future<void> disconnect() async {
