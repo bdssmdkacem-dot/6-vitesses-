@@ -55,6 +55,38 @@ jobs:
           storeFile=release-keystore.jks
           EOF
 
+      - name: Apply release signing config
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          if 'val keystorePropertiesFile' not in s:
+              s = 'import java.util.Properties\nimport java.io.FileInputStream\n' + s
+              block = '''val keystoreProperties = Properties()
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          if (keystorePropertiesFile.exists()) {
+              FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+          }
+
+          '''
+              s = s.replace("android {", block + "android {", 1)
+              signing = '''signingConfigs {
+              create("release") {
+                  keyAlias = keystoreProperties["keyAlias"] as String?
+                  keyPassword = keystoreProperties["keyPassword"] as String?
+                  storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                  storePassword = keystoreProperties["storePassword"] as String?
+              }
+          }
+
+          '''
+              s = s.replace("    buildTypes {", "    " + signing + "    buildTypes {", 1)
+              s = s.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("release")')
+              p.write_text(s)
+          PY
+
       - name: Flutter dependencies
         run: flutter pub get
       - name: Analyze
