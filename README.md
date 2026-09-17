@@ -53,3 +53,6 @@ Release signing is designed for GitHub Actions without committing secrets:
 The CI workflow must decode the keystore only on the runner and configure the generated Android project from these secrets. No keystore, password, or signing key is stored in Git.
 
 **Important:** the repository does not contain a signing key yet. The final Play-ready AAB therefore requires the owner's existing release keystore or a newly generated one to be stored as GitHub Actions secrets. If the Play Console app is already associated with an upload key, keep that key and do not replace it casually.
+
+
+Production HUD branch: `production-hud`.
