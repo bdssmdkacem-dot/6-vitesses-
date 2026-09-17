@@ -1,0 +1,41 @@
+name: Build 6 Vitesses Android
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.41.9"
+          cache: true
+      - name: Generate Android project
+        run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
+      - name: Add location permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          marker = '<application'
+          permissions = '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n'
+          if 'ACCESS_FINE_LOCATION' not in s:
+              s = s.replace(marker, permissions + marker)
+          p.write_text(s)
+          PY
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build APK
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: six-vitesses-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
