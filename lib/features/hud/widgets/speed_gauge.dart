@@ -3,40 +3,41 @@ import 'package:flutter/material.dart';
 import '../models/hud_theme.dart';
 
 class SpeedGauge extends StatelessWidget {
-  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.animate=true});
-  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final bool animate;
+  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true});
+  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate;
   @override Widget build(BuildContext context)=>TweenAnimationBuilder<double>(
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
-      HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme),
-      HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,animate:animate),
-      HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,animate:animate),
+      HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
+      HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate),
+      HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate),
     });
 }
 class _DigitalSpeed extends StatelessWidget {
-  const _DigitalSpeed({required this.speed,required this.theme}); final double speed; final HudTheme theme;
+  const _DigitalSpeed({required this.speed,required this.theme,required this.unitLabel});
+  final double speed; final HudTheme theme; final String unitLabel;
   @override Widget build(BuildContext context)=>Column(mainAxisSize:MainAxisSize.min,children:[
     Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:132,fontWeight:FontWeight.w800,height:.82,shadows:theme.glow?[Shadow(color:theme.accent.withValues(alpha:.5),blurRadius:18)]:const[])),
-    Text('km/h',style:TextStyle(color:theme.secondary,fontSize:22,letterSpacing:2)),
+    Text(unitLabel,style:TextStyle(color:theme.secondary,fontSize:22,letterSpacing:2)),
   ]);
 }
 class _LinearSpeed extends StatelessWidget {
-  const _LinearSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.animate});
-  final double speed,maxSpeed; final HudTheme theme; final bool animate;
+  const _LinearSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate});
+  final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate;
   @override Widget build(BuildContext context){final v=(speed/maxSpeed).clamp(0.0,1.0);return Column(mainAxisSize:MainAxisSize.min,children:[
-    Text('${speed.toStringAsFixed(0)} km/h',style:TextStyle(color:theme.accent,fontSize:48,fontWeight:FontWeight.w800)),
+    Text('${speed.toStringAsFixed(0)} $$unitLabel',style:TextStyle(color:theme.accent,fontSize:48,fontWeight:FontWeight.w800)),
     const SizedBox(height:16),SizedBox(width:520,child:TweenAnimationBuilder<double>(tween:Tween(begin:0,end:v),duration:animate?const Duration(milliseconds:300):Duration.zero,curve:Curves.easeOutCubic,builder:(_,value,__)=>
       LinearProgressIndicator(value:value,minHeight:12,backgroundColor:theme.secondary.withValues(alpha:.22),color:theme.accent))),
   ]);}
 }
 class _CircularSpeed extends StatelessWidget {
-  const _CircularSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.animate});
-  final double speed,maxSpeed; final HudTheme theme; final bool animate;
+  const _CircularSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate});
+  final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate;
   @override Widget build(BuildContext context){final v=(speed/maxSpeed).clamp(0.0,1.0);return SizedBox(width:290,height:290,child:TweenAnimationBuilder<double>(
     tween:Tween(begin:0,end:v),duration:animate?const Duration(milliseconds:320):Duration.zero,curve:Curves.easeOutCubic,builder:(_,value,__)=>
       CustomPaint(painter:_GaugePainter(value:value,theme:theme),child:Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
         Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:68,fontWeight:FontWeight.w800,shadows:theme.glow?[Shadow(color:theme.accent.withValues(alpha:.45),blurRadius:14)]:const[])),
-        Text('km/h',style:TextStyle(color:theme.secondary,letterSpacing:1.5)),
+        Text(unitLabel,style:TextStyle(color:theme.secondary,letterSpacing:1.5)),
       ]))));}
 }
 class _GaugePainter extends CustomPainter {
