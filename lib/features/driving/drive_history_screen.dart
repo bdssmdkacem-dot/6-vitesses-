@@ -17,7 +17,7 @@ class DriveHistoryScreen extends StatelessWidget {
             if (history.records.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                onPressed: () => history.clear(),
+                onPressed: () => _confirmClear(context),
               ),
           ],
         ),
@@ -37,6 +37,21 @@ class DriveHistoryScreen extends StatelessWidget {
               ),
       ),
     );
+  }
+
+  Future<void> _confirmClear(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Clear drive history?'),
+        content: const Text('All saved drives on this device will be removed.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Clear')),
+        ],
+      ),
+    );
+    if (confirmed == true) await history.clear();
   }
 
   void _showDetails(BuildContext context, DriveRecord record) {
