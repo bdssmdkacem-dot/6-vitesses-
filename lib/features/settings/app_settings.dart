@@ -32,10 +32,12 @@ class AppSettings extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final s = AppSettings._(prefs);
     s._theme = _themeFromIndex(prefs.getInt(_themeKey) ?? 0);
-    s._gauge = HudGaugeStyle.values[prefs.getInt(_gaugeKey) ?? 0].clamp(0, HudGaugeStyle.values.length - 1);
+    final gaugeIndex = (prefs.getInt(_gaugeKey) ?? 0).clamp(0, HudGaugeStyle.values.length - 1).toInt();
+    s._gauge = HudGaugeStyle.values[gaugeIndex];
     s._mirror = prefs.getBool(_mirrorKey) ?? false;
-    s._gear = (prefs.getInt(_gearKey) ?? 0).clamp(0, 6);
-    s._unit = SpeedUnit.values[(prefs.getInt(_unitKey) ?? 0).clamp(0, SpeedUnit.values.length - 1)];
+    s._gear = (prefs.getInt(_gearKey) ?? 0).clamp(0, 6).toInt();
+    final unitIndex = (prefs.getInt(_unitKey) ?? 0).clamp(0, SpeedUnit.values.length - 1).toInt();
+    s._unit = SpeedUnit.values[unitIndex];
     s._speedLimit = prefs.getDouble(_limitKey) ?? 240;
     s._vehicleName = prefs.getString(_vehicleNameKey) ?? 'My Car';
     s._vehicleModel = prefs.getString(_vehicleModelKey) ?? '';
@@ -43,7 +45,7 @@ class AppSettings extends ChangeNotifier {
     return s;
   }
 
-  static HudTheme _themeFromIndex(int i) => HudTheme.all[i.clamp(0, HudTheme.all.length - 1)];
+  static HudTheme _themeFromIndex(int i) => HudTheme.all[i.clamp(0, HudTheme.all.length - 1).toInt()];
 
   HudTheme get theme => _theme;
   HudGaugeStyle get gauge => _gauge;
@@ -60,9 +62,9 @@ class AppSettings extends ChangeNotifier {
   Future<void> setTheme(HudTheme value) async { _theme = value; await _prefs.setInt(_themeKey, HudTheme.all.indexOf(value)); notifyListeners(); }
   Future<void> setGauge(HudGaugeStyle value) async { _gauge = value; await _prefs.setInt(_gaugeKey, value.index); notifyListeners(); }
   Future<void> setMirror(bool value) async { _mirror = value; await _prefs.setBool(_mirrorKey, value); notifyListeners(); }
-  Future<void> setGear(int value) async { _gear = value.clamp(0, 6); await _prefs.setInt(_gearKey, _gear); notifyListeners(); }
+  Future<void> setGear(int value) async { _gear = value.clamp(0, 6).toInt(); await _prefs.setInt(_gearKey, _gear); notifyListeners(); }
   Future<void> setUnit(SpeedUnit value) async { _unit = value; await _prefs.setInt(_unitKey, value.index); notifyListeners(); }
-  Future<void> setSpeedLimit(double value) async { _speedLimit = value.clamp(60, 360); await _prefs.setDouble(_limitKey, _speedLimit); notifyListeners(); }
+  Future<void> setSpeedLimit(double value) async { _speedLimit = value.clamp(60, 360).toDouble(); await _prefs.setDouble(_limitKey, _speedLimit); notifyListeners(); }
   Future<void> setVehicle({required String name, required String model}) async {
     _vehicleName = name.trim().isEmpty ? 'My Car' : name.trim();
     _vehicleModel = model.trim();
