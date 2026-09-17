@@ -31,16 +31,63 @@ class _LinearSpeed extends StatelessWidget {
   ]);}
 }
 class _CircularSpeed extends StatelessWidget {
-  const _CircularSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate});
-  final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate;
-  @override Widget build(BuildContext context){final v=(speed/maxSpeed).clamp(0.0,1.0);return SizedBox(width:290,height:290,child:TweenAnimationBuilder<double>(
-    tween:Tween(begin:0,end:v),duration:animate?const Duration(milliseconds:320):Duration.zero,curve:Curves.easeOutCubic,builder:(_,value,__)=>
-      CustomPaint(painter:_GaugePainter(value:value,theme:theme),child:Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
-        Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:68,fontWeight:FontWeight.w800,shadows:theme.glow?[Shadow(color:theme.accent.withValues(alpha:.45),blurRadius:14)]:const[])),
-        Text(unitLabel,style:TextStyle(color:theme.secondary,letterSpacing:1.5)),
-      ]))));}
+  const _CircularSpeed({
+    required this.speed,
+    required this.maxSpeed,
+    required this.theme,
+    required this.unitLabel,
+    required this.animate,
+  });
+
+  final double speed;
+  final double maxSpeed;
+  final HudTheme theme;
+  final String unitLabel;
+  final bool animate;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = (speed / maxSpeed).clamp(0.0, 1.0);
+    return SizedBox(
+      width: 290,
+      height: 290,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: v),
+        duration: animate ? const Duration(milliseconds: 320) : Duration.zero,
+        curve: Curves.easeOutCubic,
+        builder: (_, value, __) {
+          return CustomPaint(
+            painter: _GaugePainter(value: value, theme: theme),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    speed.toStringAsFixed(0),
+                    style: TextStyle(
+                      color: theme.accent,
+                      fontSize: 68,
+                      fontWeight: FontWeight.w800,
+                      shadows: theme.glow
+                          ? [Shadow(color: theme.accent.withValues(alpha: .45), blurRadius: 14)]
+                          : const [],
+                    ),
+                  ),
+                  Text(
+                    unitLabel,
+                    style: TextStyle(color: theme.secondary, letterSpacing: 1.5),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 class _GaugePainter extends CustomPainter {
+
   const _GaugePainter({required this.value,required this.theme}); final double value; final HudTheme theme;
   @override void paint(Canvas canvas,Size size){
     final center=size.center(Offset.zero),radius=size.shortestSide/2-18,rect=Rect.fromCircle(center:center,radius:radius);
