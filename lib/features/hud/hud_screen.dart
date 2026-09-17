@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import '../driving/drive_history.dart';
 import '../driving/drive_history_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -30,7 +29,6 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   StreamSubscription<GpsSample>? _gpsSub;
   StreamSubscription<MotionSample>? _motionSub;
   Timer? _gpsWatchdog;
-
   double _speed = 0;
   double _longitudinalAccel = 0;
   double _totalAccel = 0;
@@ -41,7 +39,6 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   bool _mirror = false;
   bool _ready = false;
   bool _gpsStale = true;
-
   HudTheme _theme = HudTheme.midnight;
   HudGaugeStyle _style = HudGaugeStyle.digital;
 
@@ -59,10 +56,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _enterHud() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     await WakelockPlus.enable();
   }
@@ -79,22 +73,15 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if (_longitudinalAccel < _maxBraking) _maxBraking = _longitudinalAccel;
       });
       if (_session.active && !sample.isStale) {
-        _session.addSample(
-          speedKmh: sample.speedKmh,
-          acceleration: sample.longitudinalAcceleration,
-          timestamp: sample.timestamp,
-        );
+        _session.addSample(speedKmh: sample.speedKmh, acceleration: sample.longitudinalAcceleration, timestamp: sample.timestamp);
       }
     });
-
     _motionSub = _motionService.samples.listen((sample) {
       if (!mounted) return;
       setState(() => _totalAccel = sample.totalAcceleration);
     });
-
     _motionService.start();
     await _gpsService.start();
-
     _gpsWatchdog?.cancel();
     _gpsWatchdog = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -109,17 +96,12 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         });
       }
     });
-
     if (mounted) setState(() => _ready = true);
   }
 
   void _startDrive() {
     _session.start();
-    setState(() {
-      _maxSpeed = 0;
-      _maxAccel = 0;
-      _maxBraking = 0;
-    });
+    setState(() { _maxSpeed = 0; _maxAccel = 0; _maxBraking = 0; });
   }
 
   Future<void> _stopDrive() async {
@@ -131,140 +113,32 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   void _settings() {
     if (_session.active) return;
     showModalBottomSheet(
-      context: context,
-      backgroundColor: _theme.background,
-      isScrollControlled: true,
+      context: context, backgroundColor: _theme.background, isScrollControlled: true,
       builder: (_) => StatefulBuilder(
         builder: (context, setSheet) => SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('HUD SETTINGS',
-                style: TextStyle(color: _theme.accent, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: HudTheme.all.map((theme) => ChoiceChip(
-                  label: Text(theme.name),
-                  selected: _theme == theme,
-                  onSelected: (_) async {
-                    await widget.settings.setTheme(theme);
-                    setState(() => _theme = theme);
-                    setSheet(() {});
-                  },
-                )).toList(),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: HudGaugeStyle.values.map((style) => ChoiceChip(
-                  label: Text(style.name.toUpperCase()),
-                  selected: _style == style,
-                  onSelected: (_) async {
-                    await widget.settings.setGauge(style);
-                    setState(() => _style = style);
-                    setSheet(() {});
-                  },
-                )).toList(),
-              ),
-              const SizedBox(height: 8),
-              GearIndicator(gear: _gear, theme: _theme),
-              Wrap(
-                spacing: 6,
-                children: List.generate(7, (index) => ChoiceChip(
-                  label: Text(index == 0 ? 'N' : '$index'),
-                  selected: _gear == index,
-                  onSelected: (_) async {
-                    await widget.settings.setGear(index);
-                    setState(() => _gear = index);
-                    setSheet(() {});
-                  },
-                )).toList(),
-              ),
-              ListTile(
-                title: Text(widget.settings.vehicleName),
-                subtitle: Text(widget.settings.vehicleModel.isEmpty ? 'Vehicle profile' : widget.settings.vehicleModel),
-                leading: const Icon(Icons.directions_car),
-                onTap: () async {
-                  final name = TextEditingController(text: widget.settings.vehicleName);
-                  final model = TextEditingController(text: widget.settings.vehicleModel);
-                  await showDialog<void>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Vehicle profile'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
-                          TextField(controller: model, decoration: const InputDecoration(labelText: 'Model')),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                        FilledButton(onPressed: () async {
-                          await widget.settings.setVehicle(name: name.text, model: model.text);
-                          if (context.mounted) Navigator.pop(context);
-                          setSheet(() {});
-                        }, child: const Text('Save')),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              DropdownButtonFormField<SpeedUnit>(
-                initialValue: widget.settings.unit,
-                decoration: const InputDecoration(labelText: 'Speed unit'),
-                items: const [
-                  DropdownMenuItem(value: SpeedUnit.kmh, child: Text('km/h')),
-                  DropdownMenuItem(value: SpeedUnit.mph, child: Text('mph')),
-                ],
-                onChanged: (value) async {
-                  if (value != null) await widget.settings.setUnit(value);
-                  setSheet(() {});
-                },
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                title: Text('Gauge limit: \${widget.settings.speedLimit.toStringAsFixed(0)}'),
-                subtitle: Slider(
-                  min: 60, max: 360, divisions: 30,
-                  value: widget.settings.speedLimit,
-                  onChanged: (value) async {
-                    await widget.settings.setSpeedLimit(value);
-                    setSheet(() {});
-                  },
-                ),
-              ),
-              SwitchListTile(
-                title: const Text('OBD-II ready'),
-                subtitle: const Text('GPS remains the fallback source until a Bluetooth adapter is connected.'),
-                value: widget.settings.obdEnabled,
-                onChanged: (value) async {
-                  await widget.settings.setObdEnabled(value);
-                  setSheet(() {});
-                },
-              ),
-              SwitchListTile(
-                title: const Text('Mirror HUD'),
-                value: _mirror,
-                onChanged: (value) async {
-                  await widget.settings.setMirror(value);
-                  setState(() => _mirror = value);
-                },
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: () {
-                  _startDrive();
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('START DRIVE'),
-              ),
-            ],
-          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('HUD SETTINGS', style: TextStyle(color: _theme.accent, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: HudTheme.all.map((theme) => ChoiceChip(label: Text(theme.name), selected: _theme == theme, onSelected: (_) async { await widget.settings.setTheme(theme); setState(() => _theme = theme); setSheet(() {}); })).toList()),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, children: HudGaugeStyle.values.map((style) => ChoiceChip(label: Text(style.name.toUpperCase()), selected: _style == style, onSelected: (_) async { await widget.settings.setGauge(style); setState(() => _style = style); setSheet(() {}); })).toList()),
+            const SizedBox(height: 8),
+            GearIndicator(gear: _gear, theme: _theme),
+            Wrap(spacing: 6, children: List.generate(7, (index) => ChoiceChip(label: Text(index == 0 ? 'N' : '$index'), selected: _gear == index, onSelected: (_) async { await widget.settings.setGear(index); setState(() => _gear = index); setSheet(() {}); })).toList()),
+            ListTile(title: Text(widget.settings.vehicleName), subtitle: Text(widget.settings.vehicleModel.isEmpty ? 'Vehicle profile' : widget.settings.vehicleModel), leading: const Icon(Icons.directions_car), onTap: () async {
+              final name = TextEditingController(text: widget.settings.vehicleName);
+              final model = TextEditingController(text: widget.settings.vehicleModel);
+              await showDialog<void>(context: context, builder: (_) => AlertDialog(title: const Text('Vehicle profile'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')), TextField(controller: model, decoration: const InputDecoration(labelText: 'Model'))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: () async { await widget.settings.setVehicle(name: name.text, model: model.text); if (context.mounted) Navigator.pop(context); setSheet(() {}); }, child: const Text('Save'))]));
+            }),
+            DropdownButtonFormField<SpeedUnit>(initialValue: widget.settings.unit, decoration: const InputDecoration(labelText: 'Speed unit'), items: const [DropdownMenuItem(value: SpeedUnit.kmh, child: Text('km/h')), DropdownMenuItem(value: SpeedUnit.mph, child: Text('mph'))], onChanged: (value) async { if (value != null) await widget.settings.setUnit(value); setSheet(() {}); }),
+            const SizedBox(height: 8),
+            ListTile(title: Text('Gauge limit: ${widget.settings.speedLimit.toStringAsFixed(0)}'), subtitle: Slider(min: 60, max: 360, divisions: 30, value: widget.settings.speedLimit, onChanged: (value) async { await widget.settings.setSpeedLimit(value); setSheet(() {}); })),
+            SwitchListTile(title: const Text('OBD-II ready'), subtitle: const Text('GPS remains the fallback source until a Bluetooth adapter is connected.'), value: widget.settings.obdEnabled, onChanged: (value) async { await widget.settings.setObdEnabled(value); setSheet(() {}); }),
+            SwitchListTile(title: const Text('Mirror HUD'), value: _mirror, onChanged: (value) async { await widget.settings.setMirror(value); setState(() => _mirror = value); }),
+            const SizedBox(height: 8),
+            FilledButton.icon(onPressed: () { _startDrive(); Navigator.pop(context); }, icon: const Icon(Icons.play_arrow), label: const Text('START DRIVE')),
+          ]),
         ),
       ),
     );
@@ -272,127 +146,26 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    _theme = widget.settings.theme;
-    _style = widget.settings.gauge;
-    _mirror = widget.settings.mirror;
-    _gear = widget.settings.gear;
-
-    final body = Scaffold(
-      backgroundColor: _theme.background,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          HudBackground(theme: _theme),
-          SafeArea(
-            child: Stack(
-              children: [
-                Center(
-                  child: SpeedGauge(speed: widget.settings.toDisplaySpeed(_speed), maxSpeed: widget.settings.toDisplaySpeed(widget.settings.speedLimit), style: _style, theme: _theme),
-                ),
-                Positioned(
-                  left: 18,
-                  top: 14,
-                  child: Row(
-                    children: [
-                      Icon(_gpsStale ? Icons.gps_off : Icons.gps_fixed, size: 15,
-                        color: _gpsStale ? Colors.redAccent : _theme.secondary),
-                      const SizedBox(width: 6),
-                      Text(_gpsStale ? 'GPS LOST' : 'GPS LOCK',
-                        style: TextStyle(color: _gpsStale ? Colors.redAccent : _theme.secondary,
-                          fontSize: 12, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  right: 18,
-                  top: 12,
-                  child: GearIndicator(gear: _gear, theme: _theme, enabled: !_session.active),
-                ),
-                if (!_session.active)
-                  Positioned(
-                    right: 86,
-                    top: 8,
-                    child: IconButton(
-                      onPressed: _settings,
-                      icon: Icon(Icons.tune, color: _theme.accent),
-                      tooltip: 'Settings',
-                    ),
-                  ),
-                if (_session.active)
-                  Positioned(
-                    right: 18,
-                    top: 10,
-                    child: FilledButton.icon(
-                      onPressed: _stopDrive,
-                      icon: const Icon(Icons.stop, size: 16),
-                      label: const Text('STOP'),
-                    ),
-                  ),
-                Positioned(
-                  left: 18,
-                  bottom: 14,
-                  child: Row(
-                    children: [
-                      _Metric('ACCEL', '${_longitudinalAccel.toStringAsFixed(1)} m/s²'),
-                      const SizedBox(width: 18),
-                      AccelerationBar(value: _longitudinalAccel, theme: _theme),
-                      const SizedBox(width: 18),
-                      _Metric('G-FORCE', '${(_totalAccel / 9.80665).toStringAsFixed(2)} G'),
-                      const SizedBox(width: 18),
-                      _Metric('MAX', '${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} ${widget.settings.unit == SpeedUnit.kmh ? 'km/h' : 'mph'}'),
-                      if (_session.active) ...[
-                        const SizedBox(width: 18),
-                        _Metric('TRIP', '${_session.distanceKm.toStringAsFixed(1)} km'),
-                      ],
-                    ],
-                  ),
-                ),
-                Positioned(
-                  right: 18,
-                  bottom: 14,
-                  child: Row(
-                    children: [
-                      if (!_session.active)
-                        IconButton(
-                          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DriveHistoryScreen(history: widget.history))),
-                          icon: Icon(Icons.history, color: _theme.accent),
-                          tooltip: 'History',
-                        ),
-                      _Metric('BRAKE MAX', '${_maxBraking.toStringAsFixed(1)} m/s²'),
-                    ],
-                  ),
-                ),
-                if (!_ready)
-                  Center(
-                    child: Text('STARTING SENSORS...', style: TextStyle(color: _theme.secondary)),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return Transform(
-      alignment: Alignment.center,
-      transform: Matrix4.diagonal3Values(_mirror ? -1 : 1, 1, 1),
-      child: body,
-    );
+    _theme = widget.settings.theme; _style = widget.settings.gauge; _mirror = widget.settings.mirror; _gear = widget.settings.gear;
+    final body = Scaffold(backgroundColor: _theme.background, body: Stack(fit: StackFit.expand, children: [
+      HudBackground(theme: _theme),
+      SafeArea(child: Stack(children: [
+        Center(child: SpeedGauge(speed: widget.settings.toDisplaySpeed(_speed), maxSpeed: widget.settings.toDisplaySpeed(widget.settings.speedLimit), style: _style, theme: _theme)),
+        Positioned(left: 18, top: 14, child: Row(children: [Icon(_gpsStale ? Icons.gps_off : Icons.gps_fixed, size: 15, color: _gpsStale ? Colors.redAccent : _theme.secondary), const SizedBox(width: 6), Text(_gpsStale ? 'GPS LOST' : 'GPS LOCK', style: TextStyle(color: _gpsStale ? Colors.redAccent : _theme.secondary, fontSize: 12, fontWeight: FontWeight.w700))])),
+        Positioned(right: 18, top: 12, child: GearIndicator(gear: _gear, theme: _theme, enabled: !_session.active)),
+        if (!_session.active) Positioned(right: 86, top: 8, child: IconButton(onPressed: _settings, icon: Icon(Icons.tune, color: _theme.accent), tooltip: 'Settings')),
+        if (_session.active) Positioned(right: 18, top: 10, child: FilledButton.icon(onPressed: _stopDrive, icon: const Icon(Icons.stop, size: 16), label: const Text('STOP'))),
+        Positioned(left: 18, bottom: 14, child: Row(children: [_Metric('ACCEL', '${_longitudinalAccel.toStringAsFixed(1)} m/s²'), const SizedBox(width: 18), AccelerationBar(value: _longitudinalAccel, theme: _theme), const SizedBox(width: 18), _Metric('G-FORCE', '${(_totalAccel / 9.80665).toStringAsFixed(2)} G'), const SizedBox(width: 18), _Metric('MAX', '${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} ${widget.settings.unit == SpeedUnit.kmh ? 'km/h' : 'mph'}'), if (_session.active) ...[const SizedBox(width: 18), _Metric('TRIP', '${_session.distanceKm.toStringAsFixed(1)} km')]])),
+        Positioned(right: 18, bottom: 14, child: Row(children: [if (!_session.active) IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DriveHistoryScreen(history: widget.history))), icon: Icon(Icons.history, color: _theme.accent), tooltip: 'History'), _Metric('BRAKE MAX', '${_maxBraking.toStringAsFixed(1)} m/s²')])),
+        if (!_ready) Center(child: Text('STARTING SENSORS...', style: TextStyle(color: _theme.secondary))),
+      ])),
+    ]));
+    return Transform(alignment: Alignment.center, transform: Matrix4.diagonal3Values(_mirror ? -1 : 1, 1, 1), child: body);
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _gpsWatchdog?.cancel();
-    _gpsSub?.cancel();
-    _motionSub?.cancel();
-    _gpsService.dispose();
-    _motionService.dispose();
-    _session.dispose();
-    WakelockPlus.disable();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-    super.dispose();
+    WidgetsBinding.instance.removeObserver(this); _gpsWatchdog?.cancel(); _gpsSub?.cancel(); _motionSub?.cancel(); _gpsService.dispose(); _motionService.dispose(); _session.dispose(); WakelockPlus.disable(); SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge); SystemChrome.setPreferredOrientations(DeviceOrientation.values); super.dispose();
   }
 }
 
@@ -400,15 +173,6 @@ class _Metric extends StatelessWidget {
   const _Metric(this.label, this.value);
   final String label;
   final String value;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10)),
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 10)), Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))]);
 }
