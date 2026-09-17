@@ -39,3 +39,17 @@ The app is now organized around independent production layers:
 3. Add release signing/keystore configuration for Play-ready AAB delivery.
 4. Add device-matrix validation for GPS, sensor availability, lifecycle and Bluetooth failures.
 5. Add final application icon, store metadata and privacy disclosures.
+
+
+## Release signing
+
+Release signing is designed for GitHub Actions without committing secrets:
+
+- `ANDROID_KEYSTORE_BASE64`: base64-encoded release keystore.
+- `ANDROID_KEYSTORE_PASSWORD`: keystore password.
+- `ANDROID_KEY_ALIAS`: signing key alias.
+- `ANDROID_KEY_PASSWORD`: signing key password.
+
+The CI workflow must decode the keystore only on the runner and configure the generated Android project from these secrets. No keystore, password, or signing key is stored in Git.
+
+**Important:** the repository does not contain a signing key yet. The final Play-ready AAB therefore requires the owner's existing release keystore or a newly generated one to be stored as GitHub Actions secrets. If the Play Console app is already associated with an upload key, keep that key and do not replace it casually.
