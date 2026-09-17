@@ -58,7 +58,7 @@ jobs:
           EOF
 
       - name: Apply release signing config
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.HAS_SIGNING == 'true'
         run: |
           python3 - <<'PY'
           from pathlib import Path
