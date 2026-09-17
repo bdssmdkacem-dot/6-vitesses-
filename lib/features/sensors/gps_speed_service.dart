@@ -131,6 +131,7 @@ class GpsSpeedService {
       isMocked: position.isMocked,
     );
     _lastUpdate = now;
+    _lastAccuracy = position.accuracy;
 
     _controller.add(
       GpsSample(
