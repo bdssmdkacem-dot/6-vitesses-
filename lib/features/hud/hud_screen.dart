@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../driving/driving_session.dart';
+import '../settings/app_settings.dart';
 import '../sensors/gps_speed_service.dart';
 import '../sensors/motion_sensor_service.dart';
 import 'models/hud_theme.dart';
@@ -12,7 +13,8 @@ import 'widgets/hud_background.dart';
 import 'widgets/speed_gauge.dart';
 
 class HudScreen extends StatefulWidget {
-  const HudScreen({super.key});
+  const HudScreen({super.key, required this.settings});
+  final AppSettings settings;
   @override
   State<HudScreen> createState() => _HudScreenState();
 }
