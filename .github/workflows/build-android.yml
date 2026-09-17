@@ -1,10 +1,13 @@
 name: Build 6 Vitesses Android
+
 on:
   push:
-    branches: [main]
+    branches: [main, production-hud]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,32 +19,62 @@ jobs:
           channel: stable
           flutter-version: "3.41.9"
           cache: true
+
       - name: Generate Android project
         run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
-      - name: Add location permissions
+
+      - name: Configure Android manifest
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
-          marker = '<application'
-          permissions = '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n'
-          if 'ACCESS_FINE_LOCATION' not in s:
+          marker = "<application"
+          permissions = """    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+              <uses-permission android:name="android.permission.WAKE_LOCK"/>
+          """
+          if "ACCESS_FINE_LOCATION" not in s:
               s = s.replace(marker, permissions + marker)
           p.write_text(s)
           PY
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+
+      - name: Configure release signing
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=release-keystore.jks
+          EOF
+
+      - name: Flutter dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
       - name: Build APK
         run: flutter build apk --release
       - name: Build AAB
         run: flutter build appbundle --release
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: six-vitesses-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-      - uses: actions/upload-artifact@v4
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
         with:
           name: six-vitesses-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
+      - name: Cleanup signing material
+        if: always()
+        run: rm -f android/release-keystore.jks android/key.properties
