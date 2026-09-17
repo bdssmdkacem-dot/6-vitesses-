@@ -183,6 +183,69 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
                   },
                 )).toList(),
               ),
+              ListTile(
+                title: Text(widget.settings.vehicleName),
+                subtitle: Text(widget.settings.vehicleModel.isEmpty ? 'Vehicle profile' : widget.settings.vehicleModel),
+                leading: const Icon(Icons.directions_car),
+                onTap: () async {
+                  final name = TextEditingController(text: widget.settings.vehicleName);
+                  final model = TextEditingController(text: widget.settings.vehicleModel);
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('Vehicle profile'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+                          TextField(controller: model, decoration: const InputDecoration(labelText: 'Model')),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                        FilledButton(onPressed: () async {
+                          await widget.settings.setVehicle(name: name.text, model: model.text);
+                          if (context.mounted) Navigator.pop(context);
+                          setSheet(() {});
+                        }, child: const Text('Save')),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              DropdownButtonFormField<SpeedUnit>(
+                initialValue: widget.settings.unit,
+                decoration: const InputDecoration(labelText: 'Speed unit'),
+                items: const [
+                  DropdownMenuItem(value: SpeedUnit.kmh, child: Text('km/h')),
+                  DropdownMenuItem(value: SpeedUnit.mph, child: Text('mph')),
+                ],
+                onChanged: (value) async {
+                  if (value != null) await widget.settings.setUnit(value);
+                  setSheet(() {});
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                title: Text('Gauge limit: \${widget.settings.speedLimit.toStringAsFixed(0)}'),
+                subtitle: Slider(
+                  min: 60, max: 360, divisions: 30,
+                  value: widget.settings.speedLimit,
+                  onChanged: (value) async {
+                    await widget.settings.setSpeedLimit(value);
+                    setSheet(() {});
+                  },
+                ),
+              ),
+              SwitchListTile(
+                title: const Text('OBD-II ready'),
+                subtitle: const Text('GPS remains the fallback source until a Bluetooth adapter is connected.'),
+                value: widget.settings.obdEnabled,
+                onChanged: (value) async {
+                  await widget.settings.setObdEnabled(value);
+                  setSheet(() {});
+                },
+              ),
               SwitchListTile(
                 title: const Text('Mirror HUD'),
                 value: _mirror,
