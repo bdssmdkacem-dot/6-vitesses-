@@ -46,14 +46,14 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         Wrap(spacing:8,children:HudGaugeStyle.values.map((style)=>ChoiceChip(label:Text(style.name.toUpperCase()),selected:_style==style,onSelected:(_)async{await widget.settings.setGauge(style);setState(()=>_style=style);setSheet((){});})).toList()),
         const SizedBox(height:8),
         GearIndicator(gear:_gear,theme:_theme),
-        Wrap(spacing:6,children:List.generate(7,(index)=>ChoiceChip(label:Text(index==0?'N':'$$index'),selected:_gear==index,onSelected:(_)async{await widget.settings.setGear(index);setState(()=>_gear=index);setSheet((){});})).toList()),
+        Wrap(spacing:6,children:List.generate(7,(index)=>ChoiceChip(label:Text(index==0?'N':'$index'),selected:_gear==index,onSelected:(_)async{await widget.settings.setGear(index);setState(()=>_gear=index);setSheet((){});})).toList()),
         ListTile(title:Text(widget.settings.vehicleName),subtitle:Text(widget.settings.vehicleModel.isEmpty?'Vehicle profile':widget.settings.vehicleModel),leading:const Icon(Icons.directions_car),onTap:()async{
           final name=TextEditingController(text:widget.settings.vehicleName),model=TextEditingController(text:widget.settings.vehicleModel);
           await showDialog<void>(context:context,builder:(_)=>AlertDialog(title:const Text('Vehicle profile'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:name,decoration:const InputDecoration(labelText:'Name')),TextField(controller:model,decoration:const InputDecoration(labelText:'Model'))]),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:()async{await widget.settings.setVehicle(name:name.text,model:model.text);if(context.mounted)Navigator.pop(context);setSheet((){});},child:const Text('Save'))]));
         }),
         DropdownButtonFormField<SpeedUnit>(initialValue:widget.settings.unit,decoration:const InputDecoration(labelText:'Speed unit'),items:const[DropdownMenuItem(value:SpeedUnit.kmh,child:Text('km/h')),DropdownMenuItem(value:SpeedUnit.mph,child:Text('mph'))],onChanged:(value)async{if(value!=null)await widget.settings.setUnit(value);setSheet((){});}),
         const SizedBox(height:8),
-        ListTile(title:Text('Gauge limit: $${widget.settings.speedLimit.toStringAsFixed(0)}'),subtitle:Slider(min:60,max:360,divisions:30,value:widget.settings.speedLimit,onChanged:(value)async{await widget.settings.setSpeedLimit(value);setSheet((){});})),
+        ListTile(title:Text('Gauge limit: ${widget.settings.speedLimit.toStringAsFixed(0)}'),subtitle:Slider(min:60,max:360,divisions:30,value:widget.settings.speedLimit,onChanged:(value)async{await widget.settings.setSpeedLimit(value);setSheet((){});})),
         SwitchListTile(title:const Text('Animations'),subtitle:const Text('Smooth speed, gauge and background motion'),value:widget.settings.animations,onChanged:(value)async{await widget.settings.setAnimations(value);setSheet((){});}),
         SwitchListTile(title:const Text('RPM indicator'),subtitle:Text(widget.settings.obdEnabled?'Waiting for OBD-II telemetry':'Ready for OBD-II'),value:widget.settings.showRpm,onChanged:(value)async{await widget.settings.setShowRpm(value);setSheet((){});}),
         SwitchListTile(title:const Text('Compact HUD'),subtitle:const Text('Reduce secondary information while driving'),value:widget.settings.compact,onChanged:(value)async{await widget.settings.setCompact(value);setSheet((){});}),
@@ -77,10 +77,10 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(!_session.active)Positioned(right:86,top:8,child:IconButton(onPressed:_settings,icon:Icon(Icons.tune,color:_theme.accent),tooltip:'Settings')),
         if(_session.active)Positioned(right:18,top:10,child:FilledButton.icon(onPressed:_stopDrive,icon:const Icon(Icons.stop,size:16),label:const Text('STOP'))),
         if(!compact)Positioned(left:18,bottom:14,child:Row(children:[
-          _Metric('ACCEL','$${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','$${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','$${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $$unitLabel'),
-          if(_session.active)...[const SizedBox(width:18),_Metric('TRIP','$${_session.distanceKm.toStringAsFixed(1)} km')],
+          _Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),
+          if(_session.active)...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')],
         ])),
-        if(!compact)Positioned(right:18,bottom:14,child:Row(children:[if(!_session.active)IconButton(onPressed:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>DriveHistoryScreen(history:widget.history))),icon:Icon(Icons.history,color:_theme.accent),tooltip:'History'),_Metric('BRAKE MAX','$${_maxBraking.toStringAsFixed(1)} m/s²')])),
+        if(!compact)Positioned(right:18,bottom:14,child:Row(children:[if(!_session.active)IconButton(onPressed:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>DriveHistoryScreen(history:widget.history))),icon:Icon(Icons.history,color:_theme.accent),tooltip:'History'),_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
       ])),
     ]));
