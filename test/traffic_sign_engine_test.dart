@@ -12,17 +12,19 @@ void main() {
     final result = engine.findRelevant(
       vehiclePosition: const LatLng(34.0200, -6.8416),
       headingDegrees: 0,
+      vehicleSpeedKmh: 30,
       signs: signs,
     );
     expect(result, hasLength(2));
     expect(result.first.sign.type, TrafficSignType.stop);
   });
 
-  test('ignores signs behind the vehicle', () {
+  test('ignores signs behind the vehicle when heading is reliable', () {
     final engine = TrafficSignEngine();
     final result = engine.findRelevant(
       vehiclePosition: const LatLng(34.0200, -6.8416),
       headingDegrees: 0,
+      vehicleSpeedKmh: 30,
       signs: const [
         TrafficSign(type: TrafficSignType.stop, position: LatLng(34.0180, -6.8416)),
       ],
