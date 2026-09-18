@@ -87,7 +87,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     _lastTrafficFetch = now;
     try {
       final signs = await _trafficService.nearby(center: position);
-      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs, route: _navigationRoute?.geometry,
+      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, vehicleSpeedKmh: _speed, signs: signs, route: _navigationRoute?.geometry,
         vehicleRouteProgressMeters: _navigationState?.routeProgressMeters);
       if (!mounted) return;
       setState(() { _relevantTrafficSign = relevant.isEmpty ? null : relevant.first; });
