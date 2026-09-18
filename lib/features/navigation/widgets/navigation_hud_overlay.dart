@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../navigation_models.dart';
+import '../traffic_sign_engine.dart';
 
 class NavigationHudOverlay extends StatelessWidget {
-  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary});
+  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign});
   final NavigationState state;
   final Color accent;
   final Color secondary;
+  final RelevantTrafficSign? trafficSign;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,10 @@ class NavigationHudOverlay extends StatelessWidget {
               Text(_distance(maneuver.distanceMeters), style: TextStyle(color: secondary, fontSize: 12, fontWeight: FontWeight.w700)),
               if (maneuver.name != null && maneuver.name!.isNotEmpty) Text(maneuver.name!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12)),
             ])),
+            if (trafficSign != null) ...[
+              const SizedBox(width: 10),
+              _SignBadge(sign: trafficSign!, accent: accent),
+            ],
             const SizedBox(width: 12),
             Column(mainAxisSize: MainAxisSize.min, children: [
               Text(_distance(state.remainingMeters), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
@@ -79,5 +85,42 @@ class _ManeuverIcon extends StatelessWidget {
       default: icon = Icons.straight;
     }
     return Icon(icon, color: color, size: 42);
+  }
+}
+
+class _SignBadge extends StatelessWidget {
+  const _SignBadge({required this.sign, required this.accent});
+  final RelevantTrafficSign sign;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (sign.sign.type) {
+      TrafficSignType.stop => 'STOP',
+      TrafficSignType.giveWay => 'GIVE WAY',
+      TrafficSignType.speedLimit => sign.sign.value == null ? 'SPEED' : sign.sign.value.toString(),
+      TrafficSignType.trafficSignals => 'LIGHTS',
+      TrafficSignType.roundabout => 'ROUND',
+      TrafficSignType.crossing => 'CROSS',
+      TrafficSignType.motorway => 'MOTORWAY',
+      TrafficSignType.oneWay => 'ONE WAY',
+      TrafficSignType.unknown => 'ROAD',
+    };
+    final icon = switch (sign.sign.type) {
+      TrafficSignType.stop => Icons.stop_circle,
+      TrafficSignType.giveWay => Icons.change_history,
+      TrafficSignType.speedLimit => Icons.speed,
+      TrafficSignType.trafficSignals => Icons.traffic,
+      TrafficSignType.roundabout => Icons.roundabout_left,
+      TrafficSignType.crossing => Icons.person,
+      TrafficSignType.motorway => Icons.directions_car,
+      TrafficSignType.oneWay => Icons.arrow_forward,
+      TrafficSignType.unknown => Icons.info_outline,
+    };
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: accent, size: 28),
+      Text(label, style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w900)),
+      Text(sign.distanceMeters.round().toString() + 'm', style: const TextStyle(color: Colors.white, fontSize: 8)),
+    ]);
   }
 }
