@@ -95,8 +95,9 @@ class GpsSpeedService {
   void _listenForServiceChanges() {
     _serviceSubscription ??= Geolocator.getServiceStatusStream().listen((status) {
       if (_disposed) return;
-      if (status == ServiceStatus.enabled) _scheduleRetry(immediate: true);
-      else {
+      if (status == ServiceStatus.enabled) {
+        _scheduleRetry(immediate: true);
+      } else {
         _status = 'LOCATION OFF';
         _emitStale();
       }
