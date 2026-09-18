@@ -18,9 +18,9 @@ class NavigationHudOverlay extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: Padding(
-          padding: const EdgeInsets.only(right: 90),
+          padding: const EdgeInsets.only(right: 12, left: 12),
           child: Center(
-        child: Container(
+            child: Container(
           constraints: const BoxConstraints(minWidth: 230, maxWidth: 430),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: .58), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: .65))),
