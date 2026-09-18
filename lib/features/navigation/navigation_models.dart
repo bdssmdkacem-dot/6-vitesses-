@@ -1,5 +1,4 @@
 import 'package:latlong2/latlong.dart';
-import 'osrm_route_service.dart';
 
 enum NavigationManeuverType { depart, arrive, turnLeft, turnRight, sharpLeft, sharpRight, uTurn, straight, roundabout, merge, fork, offRamp, onRamp, endOfRoad, unknown }
 
