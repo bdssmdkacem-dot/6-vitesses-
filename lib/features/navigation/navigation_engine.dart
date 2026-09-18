@@ -11,9 +11,16 @@ class NavigationEngine {
     required LatLng position,
     double speedKmh = 0,
     double headingDegrees = 0,
+    double? previousRouteProgressMeters,
   }) {
     final distance = const Distance();
-    final tracking = _routeTracking(route.geometry, position, distance, headingDegrees);
+    final tracking = _routeTracking(
+      route.geometry,
+      position,
+      distance,
+      headingDegrees,
+      previousRouteProgressMeters,
+    );
     final maneuverAlong = <double>[
       for (final maneuver in route.maneuvers)
         _maneuverAlong(route.geometry, maneuver.position, distance),
@@ -65,6 +72,7 @@ class NavigationEngine {
     LatLng position,
     Distance distance,
     double headingDegrees,
+    double? previousRouteProgressMeters,
   ) {
     if (geometry.isEmpty) {
       return const _RouteTracking(
@@ -105,8 +113,17 @@ class NavigationEngine {
       final headingPenalty = headingDegrees == 0
           ? 0.0
           : _angularDifference(headingDegrees, bearing) * 0.12;
-      final progressPenalty = i == 0 ? 0.0 : 0.0;
-      final score = projection.crossTrackMeters + headingPenalty + progressPenalty;
+      final candidateAlong = cumulative + segmentMeters * projection.fraction;
+      final progressPenalty = previousRouteProgressMeters == null
+          ? 0.0
+          : _progressPenalty(
+              candidateAlong,
+              previousRouteProgressMeters,
+              cumulative,
+              segmentMeters,
+            );
+      final score =
+          projection.crossTrackMeters + headingPenalty + progressPenalty;
 
       if (score < best.score) {
         best = _ProjectionResult(
@@ -198,6 +215,20 @@ class NavigationEngine {
       if (along[i] >= progress - passedTolerance) return i;
     }
     return maneuvers.length - 1;
+  }
+
+  double _progressPenalty(
+    double candidateAlong,
+    double previousProgress,
+    double segmentStart,
+    double segmentLength,
+  ) {
+    final backwards = previousProgress - candidateAlong;
+    if (backwards <= 8) return 0;
+    final localWindow = math.max(0.0, previousProgress - 60);
+    if (candidateAlong >= localWindow) return backwards * 0.8;
+    final jump = localWindow - candidateAlong;
+    return 48 + jump * 1.5;
   }
 
   double _angularDifference(double a, double b) {
