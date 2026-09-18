@@ -64,6 +64,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           if (_navigationRoute != null && sample.position != null) {
             _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!, speedKmh: sample.speedKmh, headingDegrees: sample.headingDegrees,
               previousRouteProgressMeters: _navigationState?.routeProgressMeters,
+              previousRouteSegmentIndex: _navigationState?.routeSegmentIndex,
             );
             if (_navigationState!.offRoute) {
               _offRouteSince ??= sample.timestamp;
@@ -344,6 +345,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
             await Navigator.of(context).push(MaterialPageRoute(builder:(_) => MapScreen(onRouteReady:(route) {
               if (!mounted) return;
               setState(() { _navigationRoute = route; _navigationState = null; _navigationMessage = null; _offRouteSince = null; });
+              _startDrive();
             })));
           },icon:Icon(Icons.map,color:_theme.accent),tooltip:'Map')),
           if(!_session.active)Positioned(right:86,top:8,child:IconButton(onPressed:_settings,icon:Icon(Icons.tune,color:_theme.accent),tooltip:'Settings')),
