@@ -30,7 +30,7 @@ class NominatimSearchService {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return const [];
 
-    final uri = Uri.parse('$${baseUrl}/search').replace(
+    final uri = Uri.parse('${baseUrl}/search').replace(
       queryParameters: {
         'q': trimmed,
         'format': 'jsonv2',
@@ -50,7 +50,7 @@ class NominatimSearchService {
     ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      throw Exception('Search HTTP $${response.statusCode}');
+      throw Exception('Search HTTP ${response.statusCode}');
     }
 
     final decoded = jsonDecode(response.body);
