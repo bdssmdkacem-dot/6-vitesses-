@@ -18,15 +18,17 @@ class RelevantTrafficSign {
 }
 
 class TrafficSignEngine {
-  TrafficSignEngine({this.maxDistanceMeters = 1000, this.aheadToleranceDegrees = 70});
+  TrafficSignEngine({this.maxDistanceMeters = 1000, this.aheadToleranceDegrees = 70, this.routeToleranceMeters = 45});
   final double maxDistanceMeters;
   final double aheadToleranceDegrees;
+  final double routeToleranceMeters;
   final Distance _distance = const Distance();
 
   List<RelevantTrafficSign> findRelevant({
     required LatLng vehiclePosition,
     required double headingDegrees,
     required Iterable<TrafficSign> signs,
+    List<LatLng>? route,
   }) {
     final result = <RelevantTrafficSign>[];
     for (final sign in signs) {
@@ -34,10 +36,45 @@ class TrafficSignEngine {
       if (distanceMeters > maxDistanceMeters) continue;
       final bearing = _distance.bearing(vehiclePosition, sign.position);
       if (_angularDifference(headingDegrees, bearing) > aheadToleranceDegrees) continue;
+      if (route != null && route.length >= 2 &&
+          _distanceToRoute(sign.position, route) > routeToleranceMeters) {
+        continue;
+      }
       result.add(RelevantTrafficSign(sign: sign, distanceMeters: distanceMeters, bearingDegrees: bearing));
     }
-    result.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+    result.sort((a, b) => _priority(a.sign.type).compareTo(_priority(b.sign.type)) != 0
+        ? _priority(a.sign.type).compareTo(_priority(b.sign.type))
+        : a.distanceMeters.compareTo(b.distanceMeters));
     return result;
+  }
+
+  int _priority(TrafficSignType type) {
+    switch (type) {
+      case TrafficSignType.stop: return 0;
+      case TrafficSignType.giveWay: return 1;
+      case TrafficSignType.trafficSignals: return 2;
+      case TrafficSignType.speedLimit: return 3;
+      case TrafficSignType.roundabout: return 4;
+      default: return 5;
+    }
+  }
+
+  double _distanceToRoute(LatLng point, List<LatLng> route) {
+    var best = double.infinity;
+    for (var i = 0; i < route.length - 1; i++) {
+      final start = route[i];
+      final end = route[i + 1];
+      final startDistance = _distance.as(LengthUnit.Meter, point, start);
+      final endDistance = _distance.as(LengthUnit.Meter, point, end);
+      final fraction = (startDistance / (startDistance + endDistance)).clamp(0.0, 1.0);
+      final projected = LatLng(
+        start.latitude + (end.latitude - start.latitude) * fraction,
+        start.longitude + (end.longitude - start.longitude) * fraction,
+      );
+      final cross = _distance.as(LengthUnit.Meter, point, projected);
+      if (cross < best) best = cross;
+    }
+    return best;
   }
 
   double _angularDifference(double a, double b) {
