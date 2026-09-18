@@ -182,8 +182,7 @@ class _MapScreenState extends State<MapScreen> {
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 fallbackUrl:
-                    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                fallbackUrlSubdomains: const ['a', 'b', 'c', 'd'],
+                    'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                 userAgentPackageName: 'com.sixvitesses',
               ),
               if (_route != null)
