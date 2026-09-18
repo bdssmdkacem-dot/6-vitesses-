@@ -24,7 +24,7 @@ class _DigitalSpeed extends StatelessWidget {
 class _LinearSpeed extends StatelessWidget {
   const _LinearSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate});
   final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate;
-  @override Widget build(BuildContext context){final v=(speed/maxSpeed).clamp(0.0,1.0);return Column(mainAxisSize:MainAxisSize.min,children:[
+  @override Widget build(BuildContext context){final double v=(speed/maxSpeed).clamp(0.0,1.0).toDouble();return Column(mainAxisSize:MainAxisSize.min,children:[
     Text('${speed.toStringAsFixed(0)} $unitLabel',style:TextStyle(color:theme.accent,fontSize:48,fontWeight:FontWeight.w800)),
     const SizedBox(height:16),SizedBox(width:520,child:TweenAnimationBuilder<double>(tween:Tween(begin:0,end:v),duration:animate?const Duration(milliseconds:300):Duration.zero,curve:Curves.easeOutCubic,builder:(_,value,__)=>
       LinearProgressIndicator(value:value,minHeight:12,backgroundColor:theme.secondary.withValues(alpha:.22),color:theme.accent))),
@@ -47,12 +47,12 @@ class _CircularSpeed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final v = (speed / maxSpeed).clamp(0.0, 1.0);
+    final double v = (speed / maxSpeed).clamp(0.0, 1.0).toDouble();
     return SizedBox(
       width: 290,
       height: 290,
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: v),
+        tween: Tween<double>(begin: 0.0, end: v),
         duration: animate ? const Duration(milliseconds: 320) : Duration.zero,
         curve: Curves.easeOutCubic,
         builder: (_, value, __) {
