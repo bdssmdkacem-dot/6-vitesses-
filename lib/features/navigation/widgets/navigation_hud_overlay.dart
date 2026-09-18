@@ -36,7 +36,7 @@ class NavigationHudOverlay extends StatelessWidget {
             const SizedBox(width: 12),
             Column(mainAxisSize: MainAxisSize.min, children: [
               Text(_distance(state.remainingMeters), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-              Text((state.remainingSeconds / 60).ceil().toString() + ' min', style: TextStyle(color: secondary, fontSize: 10)),
+              Text('${(state.remainingSeconds / 60).ceil()} min', style: TextStyle(color: secondary, fontSize: 10)),
             ]),
           ]),
         ),
@@ -44,7 +44,7 @@ class NavigationHudOverlay extends StatelessWidget {
     );
   }
 
-  String _distance(double meters) => meters < 1000 ? meters.round().toString() + ' m' : (meters / 1000).toStringAsFixed(1) + ' km';
+  String _distance(double meters) => meters < 1000 ? '${meters.round()} m' : '${(meters / 1000).toStringAsFixed(1)} km';
 
   String _instruction(NavigationManeuver maneuver) {
     switch (maneuver.type) {
@@ -53,9 +53,9 @@ class NavigationHudOverlay extends StatelessWidget {
       case NavigationManeuverType.sharpLeft: return 'SHARP LEFT';
       case NavigationManeuverType.sharpRight: return 'SHARP RIGHT';
       case NavigationManeuverType.uTurn: return 'U-TURN';
-      case NavigationManeuverType.roundabout: return maneuver.exitNumber == null ? 'ROUNDABOUT' : 'ROUNDABOUT · EXIT ' + maneuver.exitNumber.toString();
+      case NavigationManeuverType.roundabout: return maneuver.exitNumber == null ? 'ROUNDABOUT' : 'ROUNDABOUT · EXIT ' + '${maneuver.exitNumber}';
       case NavigationManeuverType.merge: return 'MERGE';
-      case NavigationManeuverType.fork: return 'KEEP ' + _side(maneuver.modifier);
+      case NavigationManeuverType.fork: return 'KEEP ${_side(maneuver.modifier)}';
       case NavigationManeuverType.offRamp: return 'EXIT';
       case NavigationManeuverType.onRamp: return 'ON RAMP';
       case NavigationManeuverType.endOfRoad: return 'END OF ROAD';
@@ -98,7 +98,7 @@ class _SignBadge extends StatelessWidget {
     final label = switch (sign.sign.type) {
       TrafficSignType.stop => 'STOP',
       TrafficSignType.giveWay => 'GIVE WAY',
-      TrafficSignType.speedLimit => sign.sign.value == null ? 'SPEED' : sign.sign.value.toString(),
+      TrafficSignType.speedLimit => sign.sign.value == null ? 'SPEED' : '${sign.sign.value}',
       TrafficSignType.trafficSignals => 'LIGHTS',
       TrafficSignType.roundabout => 'ROUND',
       TrafficSignType.crossing => 'CROSS',
@@ -120,7 +120,7 @@ class _SignBadge extends StatelessWidget {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, color: accent, size: 28),
       Text(label, style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w900)),
-      Text(sign.distanceMeters.round().toString() + 'm', style: const TextStyle(color: Colors.white, fontSize: 8)),
+      Text('${sign.distanceMeters.round()}m', style: const TextStyle(color: Colors.white, fontSize: 8)),
     ]);
   }
 }
