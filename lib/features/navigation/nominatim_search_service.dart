@@ -30,7 +30,7 @@ class NominatimSearchService {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return const [];
 
-    final uri = Uri.parse('${baseUrl}/search').replace(
+    final uri = Uri.parse('$baseUrl/search').replace(
       queryParameters: {
         'q': trimmed,
         'format': 'jsonv2',
