@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 
 class GpsSample {
-  const GpsSample({required this.speedKmh, required this.accuracyM, required this.longitudinalAcceleration, required this.timestamp, required this.isStale});
+  const GpsSample({required this.speedKmh, required this.accuracyM, required this.longitudinalAcceleration, required this.timestamp, required this.isStale, this.position, this.headingDegrees = 0});
   final double speedKmh, accuracyM, longitudinalAcceleration;
+  final LatLng? position;
+  final double headingDegrees;
   final DateTime timestamp;
   final bool isStale;
 }
@@ -130,12 +133,12 @@ class GpsSpeedService {
       if (dt >= 0.2 && dt <= 10) acceleration = ((rawSpeed - previous.speed * 3.6) / dt / 3.6).clamp(-12.0, 12.0).toDouble();
     }
     _previous = position; _lastUpdate = now; _status = 'LOCKED'; _lastError = null; _retryTimer?.cancel();
-    _controller.add(GpsSample(speedKmh: speed, accuracyM: position.accuracy, longitudinalAcceleration: acceleration, timestamp: now, isStale: false));
+    _controller.add(GpsSample(speedKmh: speed, accuracyM: position.accuracy, longitudinalAcceleration: acceleration, timestamp: now, isStale: false, position: LatLng(position.latitude, position.longitude), headingDegrees: position.heading));
   }
 
   void _emitStale() {
     if (_disposed || _controller.isClosed) return;
-    _controller.add(GpsSample(speedKmh: _window.isEmpty ? 0 : _median(_window), accuracyM: double.infinity, longitudinalAcceleration: 0, timestamp: DateTime.now(), isStale: true));
+    _controller.add(GpsSample(speedKmh: _window.isEmpty ? 0 : _median(_window), accuracyM: double.infinity, longitudinalAcceleration: 0, timestamp: DateTime.now(), isStale: true, position: null, headingDegrees: 0));
   }
 
   double _median(Iterable<double> values) {
