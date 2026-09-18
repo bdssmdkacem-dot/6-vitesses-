@@ -13,16 +13,6 @@ class NavigationEngine {
     double headingDegrees = 0,
   }) {
     final distance = const Distance();
-    var nearestIndex = 0;
-    var nearestMeters = double.infinity;
-    for (var i = 0; i < route.maneuvers.length; i++) {
-      final meters = distance.as(LengthUnit.Meter, position, route.maneuvers[i].position);
-      if (meters < nearestMeters) {
-        nearestMeters = meters;
-        nearestIndex = i;
-      }
-    }
-
     final tracking = _routeTracking(route.geometry, position, distance);
     var nextIndex = _nextManeuverIndex(
       route.maneuvers,
@@ -136,7 +126,6 @@ int _nextManeuverIndex(
     Distance distance,
   ) {
     if (maneuvers.isEmpty) return -1;
-    var cumulative = 0.0;
     final maneuverAlong = <double>[];
     for (final maneuver in maneuvers) {
       var bestIndex = 0;
