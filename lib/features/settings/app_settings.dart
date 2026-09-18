@@ -3,12 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../hud/models/hud_theme.dart';
 
 enum SpeedUnit { kmh, mph }
+enum HudPreset { sport, daily, night, windshield, performance }
 
 class AppSettings extends ChangeNotifier {
   AppSettings._(this._prefs);
   final SharedPreferences _prefs;
-  static const _themeKey='hud_theme', _gaugeKey='hud_gauge', _mirrorKey='hud_mirror', _gearKey='hud_gear', _unitKey='speed_unit', _limitKey='speed_limit', _vehicleNameKey='vehicle_name', _vehicleModelKey='vehicle_model', _obdEnabledKey='obd_enabled', _animationsKey='hud_animations', _rpmKey='hud_rpm', _compactKey='hud_compact';
+  static const _presetKey='hud_preset', _themeKey='hud_theme', _gaugeKey='hud_gauge', _mirrorKey='hud_mirror', _gearKey='hud_gear', _unitKey='speed_unit', _limitKey='speed_limit', _vehicleNameKey='vehicle_name', _vehicleModelKey='vehicle_model', _obdEnabledKey='obd_enabled', _animationsKey='hud_animations', _rpmKey='hud_rpm', _compactKey='hud_compact';
 
+  HudPreset _preset=HudPreset.sport;
   HudTheme _theme=HudTheme.midnight;
   HudGaugeStyle _gauge=HudGaugeStyle.digital;
   bool _mirror=false,_obdEnabled=false,_animations=true,_showRpm=true,_compact=false;
@@ -20,6 +22,7 @@ class AppSettings extends ChangeNotifier {
   static Future<AppSettings> load() async {
     final prefs=await SharedPreferences.getInstance();
     final s=AppSettings._(prefs);
+    s._preset=HudPreset.values[(prefs.getInt(_presetKey)??0).clamp(0,HudPreset.values.length-1).toInt()];
     s._theme=_themeFromIndex(prefs.getInt(_themeKey)??0);
     s._gauge=HudGaugeStyle.values[(prefs.getInt(_gaugeKey)??0).clamp(0,HudGaugeStyle.values.length-1).toInt()];
     s._mirror=prefs.getBool(_mirrorKey)??false;
@@ -35,7 +38,8 @@ class AppSettings extends ChangeNotifier {
     return s;
   }
   static HudTheme _themeFromIndex(int i)=>HudTheme.all[i.clamp(0,HudTheme.all.length-1).toInt()];
-  HudTheme get theme=>_theme; HudGaugeStyle get gauge=>_gauge; bool get mirror=>_mirror; int get gear=>_gear; SpeedUnit get unit=>_unit; double get speedLimit=>_speedLimit; String get vehicleName=>_vehicleName; String get vehicleModel=>_vehicleModel; bool get obdEnabled=>_obdEnabled; bool get animations=>_animations; bool get showRpm=>_showRpm; bool get compact=>_compact;
+  HudPreset get preset=>_preset; HudTheme get theme=>_theme; HudGaugeStyle get gauge=>_gauge; bool get mirror=>_mirror; int get gear=>_gear; SpeedUnit get unit=>_unit; double get speedLimit=>_speedLimit; String get vehicleName=>_vehicleName; String get vehicleModel=>_vehicleModel; bool get obdEnabled=>_obdEnabled; bool get animations=>_animations; bool get showRpm=>_showRpm; bool get compact=>_compact;
+  Future<void> setPreset(HudPreset v)async{_preset=v;await _prefs.setInt(_presetKey,v.index);notifyListeners();}
   double toDisplaySpeed(double kmh)=>_unit==SpeedUnit.kmh?kmh:kmh*0.621371;
   Future<void> setTheme(HudTheme v)async{_theme=v;await _prefs.setInt(_themeKey,HudTheme.all.indexOf(v));notifyListeners();}
   Future<void> setGauge(HudGaugeStyle v)async{_gauge=v;await _prefs.setInt(_gaugeKey,v.index);notifyListeners();}
