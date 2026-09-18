@@ -70,14 +70,15 @@ class NavigationEngine {
 
     final enrichedManeuvers = <NavigationManeuver>[
       for (var i = 0; i < route.maneuvers.length; i++)
-        route.maneuvers[i].routeProgressMeters ?? _enrichManeuver(
+        _enrichManeuver(
           route.maneuvers[i],
-          maneuverAlong[i],
-          _maneuverSegmentIndex(
-            route.geometry,
-            route.maneuvers[i].position,
-            distance,
-          ),
+          route.maneuvers[i].routeProgressMeters ?? maneuverAlong[i],
+          route.maneuvers[i].routeSegmentIndex ??
+              _maneuverSegmentIndex(
+                route.geometry,
+                route.maneuvers[i].position,
+                distance,
+              ),
         ),
     ];
 
