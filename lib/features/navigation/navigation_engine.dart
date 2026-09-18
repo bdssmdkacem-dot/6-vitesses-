@@ -12,6 +12,7 @@ class NavigationEngine {
     double speedKmh = 0,
     double headingDegrees = 0,
     double? previousRouteProgressMeters,
+    int? previousRouteSegmentIndex,
   }) {
     final distance = const Distance();
     final tracking = _routeTracking(
@@ -19,12 +20,16 @@ class NavigationEngine {
       position,
       distance,
       headingDegrees,
+      speedKmh,
       previousRouteProgressMeters,
+      previousRouteSegmentIndex,
     );
+
     final maneuverAlong = <double>[
       for (final maneuver in route.maneuvers)
         _maneuverAlong(route.geometry, maneuver.position, distance),
     ];
+
     var nextIndex = _nextManeuverIndex(
       route.maneuvers,
       maneuverAlong,
@@ -34,27 +39,51 @@ class NavigationEngine {
       nextIndex = route.maneuvers.length - 1;
     }
 
-    final remaining = math.max(0.0, route.distanceMeters - tracking.alongMeters).toDouble();
+    final remaining =
+        math.max(0.0, route.distanceMeters - tracking.alongMeters).toDouble();
     final nextManeuverDistance = nextIndex < 0
         ? 0.0
-        : math.max(0.0, maneuverAlong[nextIndex] - tracking.alongMeters).toDouble();
+        : math.max(
+            0.0,
+            maneuverAlong[nextIndex] - tracking.alongMeters,
+          ).toDouble();
 
-    final baselineSpeedMps = route.durationSeconds > 0 && route.distanceMeters > 0
-        ? route.distanceMeters / route.durationSeconds
-        : 13.9;
-    final currentSpeedMps = speedKmh > 2 ? speedKmh / 3.6 : baselineSpeedMps;
+    final baselineSpeedMps =
+        route.durationSeconds > 0 && route.distanceMeters > 0
+            ? route.distanceMeters / route.durationSeconds
+            : 13.9;
+    final currentSpeedMps =
+        speedKmh > 2 ? speedKmh / 3.6 : baselineSpeedMps;
     final etaSeconds = remaining <= 1.0
         ? 0.0
         : (remaining / math.max(1.0, currentSpeedMps)).toDouble();
 
     final routeBearing = tracking.bearingDegrees;
-    final headingDelta = _angularDifference(headingDegrees, routeBearing);
+    final headingIsReliable = speedKmh >= 5;
+    final headingDelta =
+        _angularDifference(headingDegrees, routeBearing);
     final offRoute = tracking.distanceFromRouteMeters > 35 ||
-        (speedKmh > 15 && headingDelta > 75 && tracking.distanceFromRouteMeters > 18);
+        (speedKmh > 15 &&
+            headingIsReliable &&
+            headingDelta > 75 &&
+            tracking.distanceFromRouteMeters > 18);
+
+    final enrichedManeuvers = <NavigationManeuver>[
+      for (var i = 0; i < route.maneuvers.length; i++)
+        route.maneuvers[i].routeProgressMeters ?? _enrichManeuver(
+          route.maneuvers[i],
+          maneuverAlong[i],
+          _maneuverSegmentIndex(
+            route.geometry,
+            route.maneuvers[i].position,
+            distance,
+          ),
+        ),
+    ];
 
     return NavigationState(
       route: route.geometry,
-      maneuvers: route.maneuvers,
+      maneuvers: enrichedManeuvers,
       nextIndex: nextIndex,
       remainingMeters: remaining,
       remainingSeconds: etaSeconds,
@@ -64,6 +93,27 @@ class NavigationEngine {
       nextManeuverDistanceMeters: nextManeuverDistance,
       routeProgressMeters: tracking.alongMeters,
       routeTotalMeters: route.distanceMeters,
+      routeSegmentIndex: tracking.segmentIndex,
+    );
+  }
+
+  NavigationManeuver _enrichManeuver(
+    NavigationManeuver maneuver,
+    double alongMeters,
+    int segmentIndex,
+  ) {
+    return NavigationManeuver(
+      type: maneuver.type,
+      position: maneuver.position,
+      distanceMeters: maneuver.distanceMeters,
+      name: maneuver.name,
+      modifier: maneuver.modifier,
+      exitNumber: maneuver.exitNumber,
+      bearingBefore: maneuver.bearingBefore,
+      bearingAfter: maneuver.bearingAfter,
+      roadRef: maneuver.roadRef,
+      routeProgressMeters: alongMeters,
+      routeSegmentIndex: segmentIndex,
     );
   }
 
@@ -72,7 +122,9 @@ class NavigationEngine {
     LatLng position,
     Distance distance,
     double headingDegrees,
+    double speedKmh,
     double? previousRouteProgressMeters,
+    int? previousRouteSegmentIndex,
   ) {
     if (geometry.isEmpty) {
       return const _RouteTracking(
@@ -80,6 +132,7 @@ class NavigationEngine {
         distanceFromRouteMeters: 0,
         bearingDegrees: 0,
         alongMeters: 0,
+        segmentIndex: 0,
       );
     }
     if (geometry.length == 1) {
@@ -90,6 +143,7 @@ class NavigationEngine {
         distanceFromRouteMeters: pointDistance,
         bearingDegrees: 0,
         alongMeters: 0,
+        segmentIndex: 0,
       );
     }
 
@@ -110,18 +164,27 @@ class NavigationEngine {
 
       final projection = _project(position, start, end);
       final bearing = distance.bearing(start, end);
-      final headingPenalty = headingDegrees == 0
+      final headingIsReliable = speedKmh >= 5;
+      final headingPenalty = !headingIsReliable
           ? 0.0
           : _angularDifference(headingDegrees, bearing) * 0.12;
-      final candidateAlong = cumulative + segmentMeters * projection.fraction;
+      final candidateAlong =
+          cumulative + segmentMeters * projection.fraction;
       final progressPenalty = previousRouteProgressMeters == null
           ? 0.0
-          : _progressPenalty(
+          : _progressPenalty(candidateAlong, previousRouteProgressMeters);
+      final segmentPenalty = previousRouteSegmentIndex == null
+          ? 0.0
+          : _segmentContinuityPenalty(
+              i,
+              previousRouteSegmentIndex,
               candidateAlong,
               previousRouteProgressMeters,
             );
-      final score =
-          projection.crossTrackMeters + headingPenalty + progressPenalty;
+      final score = projection.crossTrackMeters +
+          headingPenalty +
+          progressPenalty +
+          segmentPenalty;
 
       if (score < best.score) {
         best = _ProjectionResult(
@@ -137,7 +200,8 @@ class NavigationEngine {
 
     var before = 0.0;
     for (var i = 0; i < best.segmentIndex; i++) {
-      before += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
+      before +=
+          distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
     }
     final segmentLength = distance.as(
       LengthUnit.Meter,
@@ -151,21 +215,40 @@ class NavigationEngine {
       distanceFromRouteMeters: best.crossTrackMeters,
       bearingDegrees: best.bearingDegrees,
       alongMeters: alongMeters,
+      segmentIndex: best.segmentIndex,
     );
+  }
+
+  double _segmentContinuityPenalty(
+    int candidateSegment,
+    int previousSegment,
+    double candidateAlong,
+    double? previousProgress,
+  ) {
+    final jump = (candidateSegment - previousSegment).abs();
+    if (jump <= 1) return 0;
+    if (previousProgress != null &&
+        candidateAlong >= previousProgress - 5 &&
+        candidateAlong <= previousProgress + 80) {
+      return math.min(18.0, (jump - 1) * 3.0);
+    }
+    return math.min(70.0, 12.0 + (jump - 1) * 8.0);
   }
 
   _ProjectionResult _project(LatLng point, LatLng start, LatLng end) {
     const metersPerDegree = 111320.0;
-    final latRad = ((start.latitude + end.latitude) * 0.5) * math.pi / 180.0;
+    final latRad =
+        ((start.latitude + end.latitude) * 0.5) * math.pi / 180.0;
     final cosLat = math.max(0.01, math.cos(latRad));
-    final dx = (end.longitude - start.longitude) * metersPerDegree * cosLat;
+    final dx =
+        (end.longitude - start.longitude) * metersPerDegree * cosLat;
     final dy = (end.latitude - start.latitude) * metersPerDegree;
-    final px = (point.longitude - start.longitude) * metersPerDegree * cosLat;
+    final px =
+        (point.longitude - start.longitude) * metersPerDegree * cosLat;
     final py = (point.latitude - start.latitude) * metersPerDegree;
     final denom = dx * dx + dy * dy;
-    final fraction = denom <= 0.0001
-        ? 0.0
-        : (px * dx + py * dy) / denom;
+    final fraction =
+        denom <= 0.0001 ? 0.0 : (px * dx + py * dy) / denom;
     final clamped = fraction.clamp(0.0, 1.0).toDouble();
     final crossX = px - dx * clamped;
     final crossY = py - dy * clamped;
@@ -202,6 +285,27 @@ class NavigationEngine {
     return bestAlong;
   }
 
+  int _maneuverSegmentIndex(
+    List<LatLng> geometry,
+    LatLng maneuver,
+    Distance distance,
+  ) {
+    if (geometry.length < 2) return 0;
+    var bestDistance = double.infinity;
+    var bestIndex = 0;
+    for (var i = 0; i < geometry.length - 1; i++) {
+      final segmentLength =
+          distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
+      if (segmentLength < 0.5) continue;
+      final projection = _project(maneuver, geometry[i], geometry[i + 1]);
+      if (projection.crossTrackMeters < bestDistance) {
+        bestDistance = projection.crossTrackMeters;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
   int _nextManeuverIndex(
     List<NavigationManeuver> maneuvers,
     List<double> along,
@@ -210,15 +314,16 @@ class NavigationEngine {
     if (maneuvers.isEmpty) return -1;
     const passedTolerance = 12.0;
     for (var i = 0; i < along.length; i++) {
+      if (maneuvers[i].type == NavigationManeuverType.depart &&
+          progress > 20) {
+        continue;
+      }
       if (along[i] >= progress - passedTolerance) return i;
     }
     return maneuvers.length - 1;
   }
 
-  double _progressPenalty(
-    double candidateAlong,
-    double previousProgress,
-  ) {
+  double _progressPenalty(double candidateAlong, double previousProgress) {
     final backwards = previousProgress - candidateAlong;
     if (backwards <= 8) return 0;
     final localWindow = math.max(0.0, previousProgress - 60);
@@ -254,10 +359,12 @@ class _RouteTracking {
     required this.distanceFromRouteMeters,
     required this.bearingDegrees,
     required this.alongMeters,
+    required this.segmentIndex,
   });
 
   final double remainingMeters;
   final double distanceFromRouteMeters;
   final double bearingDegrees;
   final double alongMeters;
+  final int segmentIndex;
 }
