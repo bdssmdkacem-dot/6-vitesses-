@@ -24,6 +24,13 @@ class NavigationEngine {
       nextIndex = route.maneuvers.length - 1;
     }
     final remaining = tracking.remainingMeters;
+    final nextManeuverDistance = _distanceToNextManeuver(
+      route.maneuvers,
+      route.geometry,
+      tracking.alongMeters,
+      nextIndex,
+      distance,
+    );
     final baselineSpeedMps = route.durationSeconds > 0 && route.distanceMeters > 0
         ? route.distanceMeters / route.durationSeconds
         : 13.9;
@@ -47,6 +54,7 @@ class NavigationEngine {
       distanceFromRouteMeters: tracking.distanceFromRouteMeters,
       offRoute: offRoute,
       routeBearingDegrees: routeBearing,
+      nextManeuverDistanceMeters: nextManeuverDistance,
     );
   }
 
@@ -120,6 +128,31 @@ class NavigationEngine {
     final delta = (a - b).abs() % 360;
     return delta > 180 ? 360 - delta : delta;
   }
+
+double _distanceToNextManeuver(
+  List<NavigationManeuver> maneuvers,
+  List<LatLng> geometry,
+  double alongMeters,
+  int index,
+  Distance distance,
+) {
+  if (index < 0 || index >= maneuvers.length || geometry.isEmpty) return 0;
+  var bestIndex = 0;
+  var bestDistance = double.infinity;
+  final maneuver = maneuvers[index];
+  for (var i = 0; i < geometry.length; i++) {
+    final d = distance.as(LengthUnit.Meter, maneuver.position, geometry[i]);
+    if (d < bestDistance) {
+      bestDistance = d;
+      bestIndex = i;
+    }
+  }
+  var maneuverAlong = 0.0;
+  for (var i = 0; i < bestIndex && i < geometry.length - 1; i++) {
+    maneuverAlong += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
+  }
+  return math.max(0.0, maneuverAlong - alongMeters).toDouble();
+}
 
 int _nextManeuverIndex(
     List<NavigationManeuver> maneuvers,
