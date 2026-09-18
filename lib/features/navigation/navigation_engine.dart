@@ -23,15 +23,16 @@ class NavigationEngine {
       }
     }
 
-    var nextIndex = route.maneuvers.isEmpty ? -1 : nearestIndex;
-    if (nextIndex >= 0) {
-      while (nextIndex < route.maneuvers.length - 1 &&
-          distance.as(LengthUnit.Meter, position, route.maneuvers[nextIndex].position) < 18) {
-        nextIndex++;
-      }
-    }
-
     final tracking = _routeTracking(route.geometry, position, distance);
+    var nextIndex = _nextManeuverIndex(
+      route.maneuvers,
+      route.geometry,
+      tracking.alongMeters,
+      distance,
+    );
+    if (nextIndex < 0 && route.maneuvers.isNotEmpty) {
+      nextIndex = route.maneuvers.length - 1;
+    }
     final remaining = tracking.remainingMeters;
     final baselineSpeedMps = route.durationSeconds > 0 && route.distanceMeters > 0
         ? route.distanceMeters / route.durationSeconds
@@ -62,6 +63,7 @@ class NavigationEngine {
     if (geometry.length == 1) {
       return _RouteTracking(
         distance.as(LengthUnit.Meter, position, geometry.first),
+        0,
         0,
         0,
       );
@@ -96,6 +98,11 @@ class NavigationEngine {
       geometry[bestSegment],
       geometry[bestSegment + 1],
     ) - bestAlong);
+    var beforeSegment = 0.0;
+    for (var i = 0; i < bestSegment; i++) {
+      beforeSegment += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
+    }
+    final alongMeters = beforeSegment + bestAlong;
     var remaining = remainingOnSegment;
     for (var i = bestSegment + 1; i < geometry.length - 1; i++) {
       remaining += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
@@ -105,6 +112,7 @@ class NavigationEngine {
       remaining,
       bestDistance,
       distance.bearing(geometry[bestSegment], geometry[bestSegment + 1]),
+      alongMeters,
     );
   }
 
@@ -121,9 +129,44 @@ class NavigationEngine {
   }
 }
 
+int _nextManeuverIndex(
+    List<NavigationManeuver> maneuvers,
+    List<LatLng> geometry,
+    double alongMeters,
+    Distance distance,
+  ) {
+    if (maneuvers.isEmpty) return -1;
+    var cumulative = 0.0;
+    final maneuverAlong = <double>[];
+    for (final maneuver in maneuvers) {
+      var bestIndex = 0;
+      var bestDistance = double.infinity;
+      for (var i = 0; i < geometry.length; i++) {
+        final d = distance.as(LengthUnit.Meter, maneuver.position, geometry[i]);
+        if (d < bestDistance) {
+          bestDistance = d;
+          bestIndex = i;
+        }
+      }
+      var along = 0.0;
+      for (var i = 0; i < bestIndex && i < geometry.length - 1; i++) {
+        along += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
+      }
+      maneuverAlong.add(along);
+    }
+
+    const triggerMeters = 18.0;
+    for (var i = 0; i < maneuverAlong.length; i++) {
+      if (maneuverAlong[i] >= alongMeters - triggerMeters) return i;
+    }
+    return maneuvers.length - 1;
+  }
+}
+
 class _RouteTracking {
-  const _RouteTracking(this.remainingMeters, this.distanceFromRouteMeters, this.bearingDegrees);
+  const _RouteTracking(this.remainingMeters, this.distanceFromRouteMeters, this.bearingDegrees, [this.alongMeters = 0]);
   final double remainingMeters;
   final double distanceFromRouteMeters;
   final double bearingDegrees;
+  final double alongMeters;
 }
