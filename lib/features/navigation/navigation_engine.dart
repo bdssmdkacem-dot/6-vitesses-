@@ -83,11 +83,12 @@ class NavigationEngine {
       }
     }
 
-    final remainingOnSegment = math.max(0.0, distance.as(
+    final segmentLength = distance.as(
       LengthUnit.Meter,
       geometry[bestSegment],
       geometry[bestSegment + 1],
-    ) - bestAlong);
+    );
+    final remainingOnSegment = math.max(0.0, segmentLength - bestAlong).toDouble();
     var beforeSegment = 0.0;
     for (var i = 0; i < bestSegment; i++) {
       beforeSegment += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
