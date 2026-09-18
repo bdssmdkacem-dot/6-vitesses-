@@ -39,7 +39,9 @@ class GpsSpeedService {
 
   Future<LocationPermission> requestLocationPermission() async {
     _permission = await Geolocator.checkPermission();
-    if (_permission == LocationPermission.denied) _permission = await Geolocator.requestPermission();
+    if (_permission == LocationPermission.denied) {
+      _permission = await Geolocator.requestPermission();
+    }
     return _permission;
   }
 
@@ -101,7 +103,9 @@ class GpsSpeedService {
     final now = position.timestamp;
     final rawSpeed = (position.speed * 3.6).clamp(0.0, 400.0).toDouble();
     _window.addLast(rawSpeed);
-    while (_window.length > windowSize) _window.removeFirst();
+    while (_window.length > windowSize) {
+      _window.removeFirst();
+    }
     final speed = _median(_window);
     var acceleration = 0.0;
     final previous = _previous;
