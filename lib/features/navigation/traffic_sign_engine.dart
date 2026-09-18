@@ -51,9 +51,11 @@ class TrafficSignEngine {
       }
       result.add(RelevantTrafficSign(sign: sign, distanceMeters: distanceMeters, bearingDegrees: bearing));
     }
-    result.sort((a, b) => _priority(a.sign.type).compareTo(_priority(b.sign.type)) != 0
-        ? _priority(a.sign.type).compareTo(_priority(b.sign.type))
-        : a.distanceMeters.compareTo(b.distanceMeters));
+    result.sort((a, b) {
+      final distanceDelta = a.distanceMeters.compareTo(b.distanceMeters);
+      if (distanceDelta != 0) return distanceDelta;
+      return _priority(a.sign.type).compareTo(_priority(b.sign.type));
+    });
     return result;
   }
 
