@@ -68,6 +68,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         await widget.settings.setCompact(false);
         await widget.settings.setShowRpm(true);
         await widget.settings.setAnimations(true);
+        await widget.settings.setMirror(false);
         break;
       case HudPreset.daily:
         await widget.settings.setTheme(HudTheme.midnight);
