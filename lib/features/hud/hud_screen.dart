@@ -138,7 +138,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 8),
                 ListTile(
-                  title: Text('Gauge limit: \${widget.settings.speedLimit.toStringAsFixed(0)}'),
+                  title: Text('Gauge limit: ${widget.settings.speedLimit.toStringAsFixed(0)}'),
                   subtitle: Slider(
                     min: 60, max: 360, divisions: 30,
                     value: widget.settings.speedLimit.clamp(60.0, 360.0).toDouble(),
