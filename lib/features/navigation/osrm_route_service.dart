@@ -121,6 +121,6 @@ class OsrmRouteService {
       default: return NavigationManeuverType.unknown;
     }
   }
-  }
 
+  void dispose() => _client.close();
 }
