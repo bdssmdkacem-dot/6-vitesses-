@@ -38,12 +38,13 @@ class TrafficSignEngine {
       final distanceMeters = _distance.as(LengthUnit.Meter, vehiclePosition, sign.position);
       if (distanceMeters > maxDistanceMeters) continue;
       final bearing = _distance.bearing(vehiclePosition, sign.position);
-      if (_angularDifference(headingDegrees, bearing) > aheadToleranceDegrees) continue;
-      if (sign.directionDegrees != null && _angularDifference(sign.directionDegrees!, headingDegrees) > 100) continue;
+      final headingIsReliable = _headingIsReliable(vehiclePosition, sign.position, headingDegrees);
+      if (headingIsReliable && _angularDifference(headingDegrees, bearing) > aheadToleranceDegrees) continue;
+      if (headingIsReliable && sign.directionDegrees != null && _angularDifference(sign.directionDegrees!, headingDegrees) > 100) continue;
       if (route != null && route.length >= 2) {
         final match = _routeMatch(sign.position, route);
         if (match.distanceMeters > routeToleranceMeters) continue;
-        if (_angularDifference(headingDegrees, match.bearingDegrees) > aheadToleranceDegrees + 20) continue;
+        if (headingIsReliable && _angularDifference(headingDegrees, match.bearingDegrees) > aheadToleranceDegrees + 20) continue;
         if (vehicleRouteProgressMeters != null &&
             match.alongMeters < vehicleRouteProgressMeters - 10) {
           continue;
@@ -99,6 +100,12 @@ class TrafficSignEngine {
       cumulative += _distance.as(LengthUnit.Meter, start, end);
     }
     return best;
+  }
+
+  bool _headingIsReliable(LatLng vehiclePosition, LatLng signPosition, double headingDegrees) {
+    final distanceMeters = _distance.as(LengthUnit.Meter, vehiclePosition, signPosition);
+    if (distanceMeters < 15) return true;
+    return headingDegrees.isFinite;
   }
 
   double _angularDifference(double a, double b) {
