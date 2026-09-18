@@ -53,8 +53,6 @@ class NavigationHudOverlay extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
   }
 
   String _distance(double meters) => meters < 1000 ? '${meters.round()} m' : '${(meters / 1000).toStringAsFixed(1)} km';
