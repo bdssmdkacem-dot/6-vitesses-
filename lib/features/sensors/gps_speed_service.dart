@@ -84,8 +84,12 @@ class GpsSpeedService {
     try {
       final position = await Geolocator.getCurrentPosition(locationSettings: settings).timeout(const Duration(seconds: 12));
       _onPosition(position);
-    } on TimeoutException { _status = 'NO FIX YET'; }
-    catch (error) { _lastError = error.toString(); _status = 'FIX ERROR'; }
+    } on TimeoutException {
+      _status = 'NO FIX YET';
+    } catch (error) {
+      _lastError = error.toString();
+      _status = 'FIX ERROR';
+    }
   }
 
   void _listenForServiceChanges() {
