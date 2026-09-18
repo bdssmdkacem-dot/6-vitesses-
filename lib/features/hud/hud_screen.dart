@@ -81,7 +81,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   @override Widget build(BuildContext context){
     _theme=widget.settings.theme;_style=widget.settings.gauge;_mirror=widget.settings.mirror;_gear=widget.settings.gear;
     final unitLabel=widget.settings.unit==SpeedUnit.kmh?'km/h':'mph',showRpm=widget.settings.showRpm&&_theme.showRpm,compact=widget.settings.compact;
-    final body=Scaffold(backgroundColor:_theme.background,body:Stack(fit:StackFit.expand,children:[
+    final hudContent=Stack(fit:StackFit.expand,children:[
       HudBackground(theme:_theme,animate:widget.settings.animations),
       SafeArea(child:Stack(children:[
         Center(child:SpeedGauge(speed:widget.settings.toDisplaySpeed(_speed),maxSpeed:widget.settings.toDisplaySpeed(widget.settings.speedLimit),style:_style,theme:_theme,unitLabel:unitLabel,animate:widget.settings.animations)),
@@ -98,8 +98,20 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[if(!_session.active)IconButton(onPressed:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>DriveHistoryScreen(history:widget.history))),icon:Icon(Icons.history,color:_theme.accent),tooltip:'History'),_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
       ])),
-    ]));
-    return Transform(alignment:Alignment.center,transform:Matrix4.diagonal3Values(_mirror?-1:1,1,1),child:body);
+    ]);
+
+    // Windshield mode is a strict horizontal mirror only. The HUD is mirrored,
+    // while the settings/navigation layer remains normal and readable.
+    final mirroredHud=Transform(
+      alignment:Alignment.center,
+      transform:Matrix4.identity()..scale(_mirror ? -1.0 : 1.0, 1.0, 1.0),
+      child:hudContent,
+    );
+
+    return Scaffold(
+      backgroundColor:_theme.background,
+      body:mirroredHud,
+    );
   }
   @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.stop();_gpsService.dispose();_motionService.dispose();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
 }
