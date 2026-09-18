@@ -10,12 +10,16 @@ class OsrmRoute {
     required this.distanceMeters,
     required this.durationSeconds,
     required this.maneuvers,
+    required this.start,
+    required this.destination,
   });
 
   final List<LatLng> geometry;
   final double distanceMeters;
   final double durationSeconds;
   final List<NavigationManeuver> maneuvers;
+  final LatLng start;
+  final LatLng destination;
 }
 
 class OsrmRouteService {
@@ -91,6 +95,8 @@ class OsrmRouteService {
       distanceMeters: (first['distance'] as num).toDouble(),
       durationSeconds: (first['duration'] as num).toDouble(),
       maneuvers: maneuvers,
+      start: start,
+      destination: destination,
     );
   }
 
