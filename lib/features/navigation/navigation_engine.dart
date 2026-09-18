@@ -71,7 +71,7 @@ class NavigationEngine {
       if (segmentMeters <= 0) continue;
       final startDistance = distance.as(LengthUnit.Meter, position, start);
       final endDistance = distance.as(LengthUnit.Meter, position, end);
-      final fraction = (startDistance / math.max(0.001, startDistance + endDistance)).clamp(0.0, 1.0);
+      final fraction = (startDistance / math.max(0.001, startDistance + endDistance)).clamp(0.0, 1.0).toDouble();
       final projected = _interpolate(start, end, fraction);
       final crossTrack = distance.as(LengthUnit.Meter, position, projected);
       final score = crossTrack + math.min(startDistance, endDistance) * 0.05;
@@ -117,7 +117,6 @@ class NavigationEngine {
     final delta = (a - b).abs() % 360;
     return delta > 180 ? 360 - delta : delta;
   }
-}
 
 int _nextManeuverIndex(
     List<NavigationManeuver> maneuvers,
