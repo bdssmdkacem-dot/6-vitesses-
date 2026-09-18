@@ -409,7 +409,7 @@ class _TrafficSignItem extends StatelessWidget {
       TrafficSignType.giveWay => Icons.change_history,
       TrafficSignType.speedLimit => Icons.speed,
       TrafficSignType.trafficSignals => Icons.traffic,
-      TrafficSignType.roundabout => Icons.roundabout,
+      TrafficSignType.roundabout => Icons.roundabout_left,
       TrafficSignType.crossing => Icons.person,
       TrafficSignType.motorway => Icons.directions_car,
       TrafficSignType.oneWay => Icons.arrow_forward,
