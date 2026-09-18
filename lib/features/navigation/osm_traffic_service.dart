@@ -66,6 +66,7 @@ out center tags;
         position: location,
         value: maxSpeed,
         name: tags['name']?.toString(),
+        directionDegrees: _direction(tags['direction']?.toString()),
       ));
     }
     return result;
@@ -84,9 +85,18 @@ out center tags;
 
   int? _speed(String? value) {
     if (value == null) return null;
-    final match = RegExp(r'(\\d+(?:[.,]\\d+)?)').firstMatch(value);
+    final match = RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(value);
     if (match == null) return null;
     return double.tryParse(match.group(1)!.replaceAll(',', '.'))?.round();
+  }
+
+  double? _direction(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toLowerCase();
+    final numeric = double.tryParse(normalized);
+    if (numeric != null) return numeric % 360;
+    const compass = <String, double>{'n': 0, 'ne': 45, 'e': 90, 'se': 135, 's': 180, 'sw': 225, 'w': 270, 'nw': 315};
+    return compass[normalized];
   }
 
   void dispose() => _client.close();
