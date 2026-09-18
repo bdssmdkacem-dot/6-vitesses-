@@ -6,7 +6,8 @@ import 'package:latlong2/latlong.dart';
 import 'osrm_route_service.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({super.key, this.onRouteReady});
+  final ValueChanged<OsrmRoute>? onRouteReady;
   @override State<MapScreen> createState() => _MapScreenState();
 }
 
@@ -56,7 +57,10 @@ class _MapScreenState extends State<MapScreen> {
     setState(() { _destination = destination; _route = null; _error = null; _loading = true; });
     try {
       final route = await _routeService.route(start: start, destination: destination);
-      if (mounted) setState(() => _route = route);
+      if (mounted) {
+        setState(() => _route = route);
+        widget.onRouteReady?.call(route);
+      }
     } catch (error) {
       if (mounted) setState(() => _error = 'Route unavailable: \$error');
     } finally {
