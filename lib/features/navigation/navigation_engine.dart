@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 import 'navigation_models.dart';
 import 'osrm_route_service.dart';
@@ -8,17 +9,14 @@ class NavigationEngine {
   NavigationState update({
     required OsrmRoute route,
     required LatLng position,
+    double speedKmh = 0,
+    double headingDegrees = 0,
   }) {
     final distance = const Distance();
     var nearestIndex = 0;
     var nearestMeters = double.infinity;
-
     for (var i = 0; i < route.maneuvers.length; i++) {
-      final meters = distance.as(
-        LengthUnit.Meter,
-        position,
-        route.maneuvers[i].position,
-      );
+      final meters = distance.as(LengthUnit.Meter, position, route.maneuvers[i].position);
       if (meters < nearestMeters) {
         nearestMeters = meters;
         nearestIndex = i;
@@ -28,79 +26,104 @@ class NavigationEngine {
     var nextIndex = route.maneuvers.isEmpty ? -1 : nearestIndex;
     if (nextIndex >= 0) {
       while (nextIndex < route.maneuvers.length - 1 &&
-          distance.as(
-                LengthUnit.Meter,
-                position,
-                route.maneuvers[nextIndex].position,
-              ) <
-              18) {
+          distance.as(LengthUnit.Meter, position, route.maneuvers[nextIndex].position) < 18) {
         nextIndex++;
       }
     }
+
+    final tracking = _routeTracking(route.geometry, position, distance);
+    final remaining = tracking.remainingMeters;
+    final baselineSpeedMps = route.durationSeconds > 0 && route.distanceMeters > 0
+        ? route.distanceMeters / route.durationSeconds
+        : 13.9;
+    final currentSpeedMps = speedKmh > 2 ? speedKmh / 3.6 : baselineSpeedMps;
+    final etaSeconds = remaining <= 1 ? 0 : remaining / math.max(1.0, currentSpeedMps);
+
+    final routeBearing = tracking.bearingDegrees;
+    final headingDelta = _angularDifference(headingDegrees, routeBearing);
+    final accuracyThreshold = 35.0;
+    final offRoute = tracking.distanceFromRouteMeters > accuracyThreshold ||
+        (speedKmh > 15 && headingDelta > 75 && tracking.distanceFromRouteMeters > 18);
 
     return NavigationState(
       route: route.geometry,
       maneuvers: route.maneuvers,
       nextIndex: nextIndex,
-      remainingMeters: _remainingDistance(route, position, distance),
-      remainingSeconds: route.durationSeconds,
+      remainingMeters: remaining,
+      remainingSeconds: etaSeconds,
+      distanceFromRouteMeters: tracking.distanceFromRouteMeters,
+      offRoute: offRoute,
+      routeBearingDegrees: routeBearing,
     );
   }
 
-  double _remainingDistance(
-    OsrmRoute route,
-    LatLng position,
-    Distance distance,
-  ) {
-    final geometry = route.geometry;
-    if (geometry.isEmpty) return 0;
+  _RouteTracking _routeTracking(List<LatLng> geometry, LatLng position, Distance distance) {
+    if (geometry.isEmpty) return const _RouteTracking(0, 0, 0);
     if (geometry.length == 1) {
-      return distance.as(LengthUnit.Meter, position, geometry.first);
+      return _RouteTracking(
+        distance.as(LengthUnit.Meter, position, geometry.first),
+        0,
+        0,
+      );
     }
 
     var bestSegment = 0;
     var bestScore = double.infinity;
+    var bestAlong = 0.0;
+    var bestDistance = double.infinity;
 
     for (var i = 0; i < geometry.length - 1; i++) {
-      final startDistance = distance.as(
-        LengthUnit.Meter,
-        position,
-        geometry[i],
-      );
-      final endDistance = distance.as(
-        LengthUnit.Meter,
-        position,
-        geometry[i + 1],
-      );
-      final score = startDistance + endDistance;
+      final start = geometry[i];
+      final end = geometry[i + 1];
+      final segmentMeters = distance.as(LengthUnit.Meter, start, end);
+      if (segmentMeters <= 0) continue;
+      final startDistance = distance.as(LengthUnit.Meter, position, start);
+      final endDistance = distance.as(LengthUnit.Meter, position, end);
+      final fraction = (startDistance / math.max(0.001, startDistance + endDistance)).clamp(0.0, 1.0);
+      final projected = _interpolate(start, end, fraction);
+      final crossTrack = distance.as(LengthUnit.Meter, position, projected);
+      final score = crossTrack + math.min(startDistance, endDistance) * 0.05;
       if (score < bestScore) {
         bestScore = score;
         bestSegment = i;
+        bestAlong = segmentMeters * fraction;
+        bestDistance = crossTrack;
       }
     }
 
-    final start = geometry[bestSegment];
-    final end = geometry[bestSegment + 1];
-    final segmentLength = distance.as(LengthUnit.Meter, start, end);
-    if (segmentLength <= 0) return 0;
-
-    final toStart = distance.as(LengthUnit.Meter, position, start);
-    final toEnd = distance.as(LengthUnit.Meter, position, end);
-
-    // Estimate the vehicle's progress along the closest route segment.
-    // For a point on the segment, dStart / (dStart + dEnd) is the
-    // travelled fraction and avoids counting the full segment twice.
-    final fraction = (toStart / (toStart + toEnd)).clamp(0.0, 1.0);
-    var remaining = segmentLength * (1 - fraction);
-
+    final remainingOnSegment = math.max(0.0, distance.as(
+      LengthUnit.Meter,
+      geometry[bestSegment],
+      geometry[bestSegment + 1],
+    ) - bestAlong);
+    var remaining = remainingOnSegment;
     for (var i = bestSegment + 1; i < geometry.length - 1; i++) {
-      remaining += distance.as(
-        LengthUnit.Meter,
-        geometry[i],
-        geometry[i + 1],
-      );
+      remaining += distance.as(LengthUnit.Meter, geometry[i], geometry[i + 1]);
     }
 
-    return remaining;
+    return _RouteTracking(
+      remaining,
+      bestDistance,
+      distance.bearing(geometry[bestSegment], geometry[bestSegment + 1]),
+    );
   }
+
+  LatLng _interpolate(LatLng a, LatLng b, double fraction) {
+    return LatLng(
+      a.latitude + (b.latitude - a.latitude) * fraction,
+      a.longitude + (b.longitude - a.longitude) * fraction,
+    );
+  }
+
+  double _angularDifference(double a, double b) {
+    final delta = (a - b).abs() % 360;
+    return delta > 180 ? 360 - delta : delta;
+  }
+}
+
+class _RouteTracking {
+  const _RouteTracking(this.remainingMeters, this.distanceFromRouteMeters, this.bearingDegrees);
+  final double remainingMeters;
+  final double distanceFromRouteMeters;
+  final double bearingDegrees;
 }
