@@ -2,17 +2,20 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'navigation_models.dart';
 
 class OsrmRoute {
   const OsrmRoute({
     required this.geometry,
     required this.distanceMeters,
     required this.durationSeconds,
+    required this.maneuvers,
   });
 
   final List<LatLng> geometry;
   final double distanceMeters;
   final double durationSeconds;
+  final List<NavigationManeuver> maneuvers;
 }
 
 class OsrmRouteService {
@@ -55,6 +58,25 @@ class OsrmRouteService {
     }
 
     final first = routes.first as Map<String, dynamic>;
+    final maneuvers = <NavigationManeuver>[];
+    final legs = (first['legs'] as List<dynamic>? ?? const []);
+    for (final legValue in legs) {
+      final leg = legValue as Map<String, dynamic>;
+      for (final stepValue in (leg['steps'] as List<dynamic>? ?? const [])) {
+        final step = stepValue as Map<String, dynamic>;
+        final maneuver = step['maneuver'] as Map<String, dynamic>?;
+        final location = maneuver?['location'] as List<dynamic>?;
+        if (maneuver == null || location == null || location.length < 2) continue;
+        maneuvers.add(NavigationManeuver(
+          type: _maneuverType(maneuver['type']?.toString(), maneuver['modifier']?.toString()),
+          position: LatLng((location[1] as num).toDouble(), (location[0] as num).toDouble()),
+          distanceMeters: (step['distance'] as num?)?.toDouble() ?? 0,
+          name: step['name']?.toString(),
+          modifier: maneuver['modifier']?.toString(),
+          exitNumber: (maneuver['exit'] as num?)?.toInt(),
+        ));
+      }
+    }
     final geometry = first['geometry'] as Map<String, dynamic>;
     final coordinatesList = geometry['coordinates'] as List<dynamic>;
 
@@ -68,7 +90,37 @@ class OsrmRouteService {
       }).toList(growable: false),
       distanceMeters: (first['distance'] as num).toDouble(),
       durationSeconds: (first['duration'] as num).toDouble(),
+      maneuvers: maneuvers,
     );
+  }
+
+  NavigationManeuverType _maneuverType(String? type, String? modifier) {
+    switch (type) {
+      case 'depart': return NavigationManeuverType.depart;
+      case 'arrive': return NavigationManeuverType.arrive;
+      case 'roundabout': return NavigationManeuverType.roundabout;
+      case 'merge': return NavigationManeuverType.merge;
+      case 'fork': return NavigationManeuverType.fork;
+      case 'on_ramp': return NavigationManeuverType.onRamp;
+      case 'off_ramp': return NavigationManeuverType.offRamp;
+      case 'end of road': return NavigationManeuverType.endOfRoad;
+      case 'new name': return NavigationManeuverType.straight;
+      case 'continue': return _turnFromModifier(modifier);
+      default: return _turnFromModifier(modifier);
+    }
+  }
+
+  NavigationManeuverType _turnFromModifier(String? modifier) {
+    switch (modifier) {
+      case 'left': return NavigationManeuverType.turnLeft;
+      case 'right': return NavigationManeuverType.turnRight;
+      case 'sharp left': return NavigationManeuverType.sharpLeft;
+      case 'sharp right': return NavigationManeuverType.sharpRight;
+      case 'uturn': return NavigationManeuverType.uTurn;
+      case 'straight': return NavigationManeuverType.straight;
+      default: return NavigationManeuverType.unknown;
+    }
+  }
   }
 
   void dispose() => _client.close();
