@@ -40,7 +40,17 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   Future<void> _enterHud()async{await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);await WakelockPlus.enable();}
   Future<void> _startSensors()async{
     _gpsSub=_gpsService.samples.listen((sample){if(!mounted)return;setState((){_speed=sample.speedKmh;_longitudinalAccel=sample.longitudinalAcceleration;_gpsStale=sample.isStale;_gpsAccuracy=sample.accuracyM;if(_speed>_maxSpeed)_maxSpeed=_speed;if(_longitudinalAccel>_maxAccel)_maxAccel=_longitudinalAccel;if(_longitudinalAccel<_maxBraking)_maxBraking=_longitudinalAccel;});if(_session.active&&!sample.isStale)_session.addSample(speedKmh:sample.speedKmh,acceleration:sample.longitudinalAcceleration,timestamp:sample.timestamp);});
-    _motionSub=_motionService.samples.listen((sample){if(!mounted)return;setState(()=>_totalAccel=sample.totalAcceleration);});
+    _motionSub=_motionService.samples.listen((sample){
+      if(!mounted)return;
+      setState((){
+        // Use the high-rate IMU signal for the live acceleration display.
+        // GPS remains the authoritative speed/session source.
+        _longitudinalAccel=sample.longitudinalAcceleration;
+        _totalAccel=sample.totalAcceleration;
+        if(_longitudinalAccel>_maxAccel)_maxAccel=_longitudinalAccel;
+        if(_longitudinalAccel<_maxBraking)_maxBraking=_longitudinalAccel;
+      });
+    });
     _motionService.start();await _gpsService.start();_gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:2),(_){
       if(!mounted)return;
       final stale=_gpsService.isStale;
