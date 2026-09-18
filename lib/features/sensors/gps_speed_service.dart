@@ -100,9 +100,14 @@ class GpsSpeedService {
     if (previous != null) {
       final dt = now.difference(previous.timestamp).inMilliseconds / 1000.0;
       if (dt >= 0.2 && dt <= 3.0) {
+        // Acceleration must react faster than the displayed speed smoothing.
+        // Use consecutive raw GPS speeds for the derivative, then apply only
+        // light filtering so throttle/braking changes are not delayed by the
+        // five-sample display median.
         final previousSpeed = previous.speed * 3.6;
-        final rawAcceleration = (speed - previousSpeed) / 3.6 / dt;
-        acceleration = _filteredAcceleration * 0.65 + rawAcceleration * 0.35;
+        final currentRawSpeed = position.speed * 3.6;
+        final rawAcceleration = (currentRawSpeed - previousSpeed) / 3.6 / dt;
+        acceleration = _filteredAcceleration * 0.30 + rawAcceleration * 0.70;
         acceleration = acceleration.clamp(-12.0, 12.0).toDouble();
       }
     }
@@ -125,7 +130,9 @@ class GpsSpeedService {
       altitudeAccuracy: position.altitudeAccuracy,
       heading: position.heading,
       headingAccuracy: position.headingAccuracy,
-      speed: speed / 3.6,
+      // Keep the raw speed here so the next acceleration sample is not
+      // delayed by the display smoothing window.
+      speed: (position.speed).clamp(0.0, 400.0 / 3.6).toDouble(),
       speedAccuracy: position.speedAccuracy,
       floor: position.floor,
       isMocked: position.isMocked,
