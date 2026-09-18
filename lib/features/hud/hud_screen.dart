@@ -114,7 +114,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     // while the settings/navigation layer remains normal and readable.
     final mirroredHud=Transform(
       alignment:Alignment.center,
-      transform:Matrix4.identity()..scale(_mirror ? -1.0 : 1.0, 1.0, 1.0),
+      transform:Matrix4.identity()..scaleByDouble(_mirror ? -1.0 : 1.0, 1.0, 1.0, 1.0),
       child:hudContent,
     );
 
