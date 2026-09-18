@@ -41,6 +41,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   double _lastHeading = 0;
   RelevantTrafficSign? _relevantTrafficSign;
   DateTime? _offRouteSince;
+  DateTime? _lastRerouteAttempt;
   bool _rerouteInProgress = false;
   String? _navigationMessage;
   OsrmRoute? _navigationRoute;
@@ -65,7 +66,9 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
             if (_navigationState!.offRoute) {
               _offRouteSince ??= sample.timestamp;
               if (sample.timestamp.difference(_offRouteSince!) >= const Duration(seconds: 4)) {
-                unawaited(_rerouteFromCurrentPosition(sample.position!));
+                final lastAttempt = _lastRerouteAttempt;
+                final cooldownOk = lastAttempt == null || sample.timestamp.difference(lastAttempt) >= const Duration(seconds: 20);
+                if (cooldownOk) unawaited(_rerouteFromCurrentPosition(sample.position!, sample.timestamp));
               }
             } else {
               _offRouteSince = null;
@@ -146,10 +149,11 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ),
     );
   }
-  void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;_offRouteSince=null;_navigationMessage=null;});}
-  Future<void> _rerouteFromCurrentPosition(LatLng position) async {
+  void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;_offRouteSince=null;_lastRerouteAttempt=null;_navigationMessage=null;});}
+  Future<void> _rerouteFromCurrentPosition(LatLng position, DateTime attemptTime) async {
     final destination = _navigationRoute?.destination;
     if (destination == null || _rerouteInProgress || !_session.active) return;
+    _lastRerouteAttempt = attemptTime;
     _rerouteInProgress = true;
     if (mounted) setState(() => _navigationMessage = 'RE-ROUTING…');
     try {
