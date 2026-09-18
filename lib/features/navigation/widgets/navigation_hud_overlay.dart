@@ -3,11 +3,12 @@ import '../navigation_models.dart';
 import '../traffic_sign_engine.dart';
 
 class NavigationHudOverlay extends StatelessWidget {
-  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign});
+  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message});
   final NavigationState state;
   final Color accent;
   final Color secondary;
   final RelevantTrafficSign? trafficSign;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +25,8 @@ class NavigationHudOverlay extends StatelessWidget {
             _ManeuverIcon(type: maneuver.type, color: accent),
             const SizedBox(width: 12),
             Flexible(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (message != null) Text(message!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.w900)),
+              if (message != null) const SizedBox(height: 2),
               Text(_instruction(maneuver), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent, fontSize: 17, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
               Text(_distance(maneuver.distanceMeters), style: TextStyle(color: secondary, fontSize: 12, fontWeight: FontWeight.w700)),
