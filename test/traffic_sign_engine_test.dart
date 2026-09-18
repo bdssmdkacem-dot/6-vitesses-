@@ -4,7 +4,7 @@ import 'package:six_vitesses/features/navigation/traffic_sign_engine.dart';
 
 void main() {
   test('returns signs ahead and orders them by distance', () {
-    const engine = TrafficSignEngine();
+    final engine = TrafficSignEngine();
     final signs = [
       TrafficSign(type: TrafficSignType.stop, position: LatLng(34.0215, -6.8416)),
       TrafficSign(type: TrafficSignType.giveWay, position: LatLng(34.0250, -6.8416)),
@@ -19,7 +19,7 @@ void main() {
   });
 
   test('ignores signs behind the vehicle', () {
-    const engine = TrafficSignEngine();
+    final engine = TrafficSignEngine();
     final result = engine.findRelevant(
       vehiclePosition: const LatLng(34.0200, -6.8416),
       headingDegrees: 0,
