@@ -123,5 +123,4 @@ class OsrmRouteService {
   }
   }
 
-  void dispose() => _client.close();
 }
