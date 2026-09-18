@@ -29,16 +29,14 @@ void main() {
     );
     final state = const NavigationEngine().update(
       route: route,
-      position: LatLng(34.0015, -6.0),
+      position: const LatLng(34.0015, -6.0),
     );
     expect(state.nextManeuver?.type, NavigationManeuverType.turnRight);
     expect(state.remainingMeters, greaterThan(0));
     expect(state.remainingMeters, lessThan(120));
   });
-}
 
-
-  test('navigation engine preserves forward segment continuity on a parallel branch', () {
+  test('navigation engine preserves forward segment continuity', () {
     final route = OsrmRoute(
       geometry: const [
         LatLng(34.0, -6.0),
@@ -77,11 +75,14 @@ void main() {
       previousRouteSegmentIndex: first.routeSegmentIndex,
     );
     expect(second.routeProgressMeters, greaterThan(first.routeProgressMeters));
-    expect(second.routeSegmentIndex, greaterThanOrEqualTo(first.routeSegmentIndex));
+    expect(
+      second.routeSegmentIndex,
+      greaterThanOrEqualTo(first.routeSegmentIndex),
+    );
   });
 
-  test('navigation engine reports roundabout exit metadata in the maneuver', () {
-    final maneuver = const NavigationManeuver(
+  test('roundabout maneuver keeps exit and bearing context', () {
+    const maneuver = NavigationManeuver(
       type: NavigationManeuverType.roundabout,
       position: LatLng(34.002, -6.0),
       distanceMeters: 80,
