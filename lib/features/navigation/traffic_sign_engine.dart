@@ -88,25 +88,6 @@ class TrafficSignEngine {
     return best;
   }
 
-  double _distanceToRoute(LatLng point, List<LatLng> route) {
-    var best = double.infinity;
-    for (var i = 0; i < route.length - 1; i++) {
-      final start = route[i];
-      final end = route[i + 1];
-      final startDistance = _distance.as(LengthUnit.Meter, point, start);
-      final endDistance = _distance.as(LengthUnit.Meter, point, end);
-      final denominator = math.max(0.001, startDistance + endDistance).toDouble();
-      final fraction = (startDistance / denominator).clamp(0.0, 1.0).toDouble();
-      final projected = LatLng(
-        start.latitude + (end.latitude - start.latitude) * fraction,
-        start.longitude + (end.longitude - start.longitude) * fraction,
-      );
-      final cross = _distance.as(LengthUnit.Meter, point, projected);
-      if (cross < best) best = cross;
-    }
-    return best;
-  }
-
   double _angularDifference(double a, double b) {
     final delta = (a - b).abs() % 360;
     return delta > 180 ? 360 - delta : delta;
