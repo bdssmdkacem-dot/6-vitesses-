@@ -29,6 +29,7 @@ class TrafficSignEngine {
   List<RelevantTrafficSign> findRelevant({
     required LatLng vehiclePosition,
     required double headingDegrees,
+    double vehicleSpeedKmh = 0,
     required Iterable<TrafficSign> signs,
     List<LatLng>? route,
     double? vehicleRouteProgressMeters,
@@ -38,7 +39,7 @@ class TrafficSignEngine {
       final distanceMeters = _distance.as(LengthUnit.Meter, vehiclePosition, sign.position);
       if (distanceMeters > maxDistanceMeters) continue;
       final bearing = _distance.bearing(vehiclePosition, sign.position);
-      final headingIsReliable = _headingIsReliable(vehiclePosition, sign.position, headingDegrees);
+      final headingIsReliable = vehicleSpeedKmh >= 5;
       if (headingIsReliable && _angularDifference(headingDegrees, bearing) > aheadToleranceDegrees) continue;
       if (headingIsReliable && sign.directionDegrees != null && _angularDifference(sign.directionDegrees!, headingDegrees) > 100) continue;
       if (route != null && route.length >= 2) {
@@ -100,12 +101,6 @@ class TrafficSignEngine {
       cumulative += _distance.as(LengthUnit.Meter, start, end);
     }
     return best;
-  }
-
-  bool _headingIsReliable(LatLng vehiclePosition, LatLng signPosition, double headingDegrees) {
-    final distanceMeters = _distance.as(LengthUnit.Meter, vehiclePosition, signPosition);
-    if (distanceMeters < 15) return true;
-    return headingDegrees.isFinite;
   }
 
   double _angularDifference(double a, double b) {
