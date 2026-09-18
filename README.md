@@ -41,6 +41,25 @@ The app is now organized around independent production layers:
 5. Add final application icon, store metadata and privacy disclosures.
 
 
+## HUD Design — Current
+
+The production HUD is now focused on a clean landscape automotive dashboard before navigation integration:
+
+- Five local presets: **Sport, Daily, Night, Windshield and Performance**.
+- Three speed presentations: **Digital, Circular and Linear**.
+- Circular and linear gauges include graduated scales, a moving marker and speed-range indication.
+- Digital mode includes a compact progress scale beneath the primary speed readout.
+- Speed-limit badge and overspeed indication are available on the main HUD.
+- Live acceleration uses the high-rate phone IMU; GPS remains authoritative for vehicle speed and drive-session samples.
+- GPS quality/loss, G-force, maximum speed, braking maximum, trip distance, RPM and manual gear remain available according to the selected layout.
+- Windshield mode uses a strict horizontal mirror transform and a compact information layout for reflection on glass.
+- Preset and HUD settings persist locally with SharedPreferences.
+- Navigation is intentionally **deferred**. The future navigation layer will be isolated from the HUD so Google Maps/Waze integration does not change the dashboard rendering architecture.
+
+### Next HUD validation gate
+
+Validate the five presets on a real landscape Android device, including daylight/night readability, touch controls before driving, mirror reflection on windshield glass, GPS loss behavior and sensor responsiveness. Only after this visual/device gate is complete should the Navigation layer be introduced.
+
 ## Release signing
 
 Release signing is designed for GitHub Actions without committing secrets:
