@@ -38,7 +38,58 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     _motionSub ??= _motionService.samples.listen((sample){if(!mounted)return;setState((){_longitudinalAccel=sample.longitudinalAcceleration;_totalAccel=sample.totalAcceleration;if(sample.longitudinalAcceleration>_maxAccel)_maxAccel=sample.longitudinalAcceleration;if(sample.longitudinalAcceleration<_maxBraking)_maxBraking=sample.longitudinalAcceleration;});});
     _motionService.start();await _gpsService.start();_gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:1),(_){if(!mounted)return;final stale=_gpsService.isStale;if(stale!=_gpsStale)setState(()=>_gpsStale=stale);if(stale)_gpsService.start();});if(mounted)setState(()=>_ready=true);
   }
-  void _showGpsDiagnostics(){showDialog<void>(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,setDialog)=>AlertDialog(title:const Text('GPS DIAGNOSTICS'),content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Permission: ${_gpsService.permission.name}'),Text('Status: ${_gpsService.status}'),if(_gpsService.lastError!=null)Text('Error: ${_gpsService.lastError}')]),actions:[TextButton(onPressed:()async{await _gpsService.refreshPermission();setDialog((){});},child:const Text('REFRESH')),TextButton(onPressed:()async{final p=await _gpsService.requestLocationPermission();setDialog((){});if(p==LocationPermission.whileInUse||p==LocationPermission.always)_gpsService.start();},child:const Text('RE-ALLOW LOCATION')),TextButton(onPressed:()=>Geolocator.openLocationSettings(),child:const Text('LOCATION SETTINGS')),TextButton(onPressed:()=>Geolocator.openAppSettings(),child:const Text('APP SETTINGS')),FilledButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('CLOSE'))]));}
+  void _showGpsDiagnostics() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: const Text('GPS DIAGNOSTICS'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Permission: ${_gpsService.permission.name}'),
+              Text('Status: ${_gpsService.status}'),
+              if (_gpsService.lastError != null)
+                Text('Error: ${_gpsService.lastError}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await _gpsService.refreshPermission();
+                setDialog(() {});
+              },
+              child: const Text('REFRESH'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final permission = await _gpsService.requestLocationPermission();
+                setDialog(() {});
+                if (permission == LocationPermission.whileInUse ||
+                    permission == LocationPermission.always) {
+                  _gpsService.start();
+                }
+              },
+              child: const Text('RE-ALLOW LOCATION'),
+            ),
+            TextButton(
+              onPressed: () => Geolocator.openLocationSettings(),
+              child: const Text('LOCATION SETTINGS'),
+            ),
+            TextButton(
+              onPressed: () => Geolocator.openAppSettings(),
+              child: const Text('APP SETTINGS'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('CLOSE'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;});}
   Future<void> _stopDrive()async{final record=_session.stop();await widget.history.add(record);if(mounted)setState((){});}
   void _settings() {
