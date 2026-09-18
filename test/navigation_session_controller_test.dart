@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../lib/features/navigation/navigation_models.dart';
-import '../lib/features/navigation/navigation_session_controller.dart';
-import '../lib/features/navigation/osrm_route_service.dart';
+import 'package:six_vitesses/features/navigation/navigation_models.dart';
+import 'package:six_vitesses/features/navigation/navigation_session_controller.dart';
+import 'package:six_vitesses/features/navigation/osrm_route_service.dart';
 
 OsrmRoute route() => OsrmRoute(
   geometry: const [LatLng(0, 0), LatLng(0, 0.01)],
