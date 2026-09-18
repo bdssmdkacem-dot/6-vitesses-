@@ -5,12 +5,12 @@ import '../models/hud_theme.dart';
 class SpeedGauge extends StatelessWidget {
   const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true});
   final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate;
-  @override Widget build(BuildContext context)=>TweenAnimationBuilder<double>(
+  @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>TweenAnimationBuilder<double>(
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
       HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
-      HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate),
-      HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate),
+      HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
+      HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
     });
 }
 class _DigitalSpeed extends StatelessWidget {
@@ -23,10 +23,10 @@ class _DigitalSpeed extends StatelessWidget {
 }
 class _LinearSpeed extends StatelessWidget {
   const _LinearSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate});
-  final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate;
-  @override Widget build(BuildContext context){final double v=(speed/maxSpeed).clamp(0.0,1.0).toDouble();return Column(mainAxisSize:MainAxisSize.min,children:[
+  final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate; final double maxWidth;
+  @override Widget build(BuildContext context){final double v=(speed/maxSpeed).clamp(0.0,1.0).toDouble();final width=math.min(520.0,maxWidth*.42);return Column(mainAxisSize:MainAxisSize.min,children:[
     Text('${speed.toStringAsFixed(0)} $unitLabel',style:TextStyle(color:theme.accent,fontSize:48,fontWeight:FontWeight.w800)),
-    const SizedBox(height:16),SizedBox(width:520,child:TweenAnimationBuilder<double>(tween:Tween(begin:0,end:v),duration:animate?const Duration(milliseconds:300):Duration.zero,curve:Curves.easeOutCubic,builder:(_,value,__)=>
+    const SizedBox(height:16),SizedBox(width:width,child:TweenAnimationBuilder<double>(tween:Tween(begin:0,end:v),duration:animate?const Duration(milliseconds:300):Duration.zero,curve:Curves.easeOutCubic,builder:(_,value,__)=>
       LinearProgressIndicator(value:value,minHeight:12,backgroundColor:theme.secondary.withValues(alpha:.22),color:theme.accent))),
   ]);}
 }
@@ -37,6 +37,7 @@ class _CircularSpeed extends StatelessWidget {
     required this.theme,
     required this.unitLabel,
     required this.animate,
+    required this.maxWidth,
   });
 
   final double speed;
@@ -44,13 +45,15 @@ class _CircularSpeed extends StatelessWidget {
   final HudTheme theme;
   final String unitLabel;
   final bool animate;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     final double v = (speed / maxSpeed).clamp(0.0, 1.0).toDouble();
+    final diameter = math.min(290.0, maxWidth * .27);
     return SizedBox(
-      width: 290,
-      height: 290,
+      width: diameter,
+      height: diameter,
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0.0, end: v),
         duration: animate ? const Duration(milliseconds: 320) : Duration.zero,
