@@ -66,13 +66,22 @@ class NavigationEngine {
     Distance distance,
     double headingDegrees,
   ) {
-    if (geometry.isEmpty) return const _RouteTracking(0, 0, 0);
+    if (geometry.isEmpty) {
+      return const _RouteTracking(
+        remainingMeters: 0,
+        distanceFromRouteMeters: 0,
+        bearingDegrees: 0,
+        alongMeters: 0,
+      );
+    }
     if (geometry.length == 1) {
+      final pointDistance =
+          distance.as(LengthUnit.Meter, position, geometry.first);
       return _RouteTracking(
-        distance.as(LengthUnit.Meter, position, geometry.first),
-        distance.as(LengthUnit.Meter, position, geometry.first),
-        0,
-        0,
+        remainingMeters: pointDistance,
+        distanceFromRouteMeters: pointDistance,
+        bearingDegrees: 0,
+        alongMeters: 0,
       );
     }
 
@@ -123,10 +132,10 @@ class NavigationEngine {
     final alongMeters = before + segmentLength * best.fraction;
 
     return _RouteTracking(
-      math.max(0.0, cumulative - (before + segmentLength * (1 - best.fraction))).toDouble(),
-      best.crossTrackMeters,
-      best.bearingDegrees,
-      alongMeters,
+      remainingMeters: math.max(0.0, cumulative - alongMeters).toDouble(),
+      distanceFromRouteMeters: best.crossTrackMeters,
+      bearingDegrees: best.bearingDegrees,
+      alongMeters: alongMeters,
     );
   }
 
@@ -213,12 +222,13 @@ class _ProjectionResult {
 }
 
 class _RouteTracking {
-  const _RouteTracking(
-    this.remainingMeters,
-    this.distanceFromRouteMeters,
-    this.bearingDegrees,
-    [this.alongMeters = 0],
-  );
+  const _RouteTracking({
+    required this.remainingMeters,
+    required this.distanceFromRouteMeters,
+    required this.bearingDegrees,
+    required this.alongMeters,
+  });
+
   final double remainingMeters;
   final double distanceFromRouteMeters;
   final double bearingDegrees;
