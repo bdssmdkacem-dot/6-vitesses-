@@ -9,6 +9,7 @@ class NavigationHudOverlay extends StatelessWidget {
   final Color secondary;
   final RelevantTrafficSign? trafficSign;
   final String? message;
+  final HudGaugeStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +19,7 @@ class NavigationHudOverlay extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: FractionallySizedBox(
-          widthFactor: .38,
+          widthFactor: style == HudGaugeStyle.digital ? .38 : .34,
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.only(right: 10, left: 8),
