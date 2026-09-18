@@ -60,8 +60,16 @@ class GpsSpeedService {
       _status = 'LOCATION OFF'; _emitStale(); _listenForServiceChanges(); return;
     }
     final permission = await requestLocationPermission();
-    if (permission == LocationPermission.denied) { _status = 'PERMISSION DENIED'; _emitStale(); return; }
-    if (permission == LocationPermission.deniedForever) { _status = 'PERMISSION BLOCKED'; _emitStale(); return; }
+    if (permission == LocationPermission.denied) {
+      _status = 'PERMISSION DENIED';
+      _emitStale();
+      return;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      _status = 'PERMISSION BLOCKED';
+      _emitStale();
+      return;
+    }
 
     _listenForServiceChanges();
     await _subscription?.cancel();
