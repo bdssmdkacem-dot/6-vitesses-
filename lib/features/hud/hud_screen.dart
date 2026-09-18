@@ -231,10 +231,10 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
         Positioned(right:18,top:12,child:GearIndicator(gear:_gear,theme:_theme,enabled:!_session.active)),
         if(!compact)Positioned(left:18,bottom:14,child:Row(children:[
-          _Metric('ACCEL','\${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','\${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','\${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),
-          if(_session.active)...[const SizedBox(width:18),_Metric('TRIP','\${_session.distanceKm.toStringAsFixed(1)} km')],
+          _Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),
+          if(_session.active)...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')],
         ])),
-        if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','\${_maxBraking.toStringAsFixed(1)} m/s²')])),
+        if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
       ])),
     ]);
