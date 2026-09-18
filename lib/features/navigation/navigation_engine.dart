@@ -119,8 +119,6 @@ class NavigationEngine {
           : _progressPenalty(
               candidateAlong,
               previousRouteProgressMeters,
-              cumulative,
-              segmentMeters,
             );
       final score =
           projection.crossTrackMeters + headingPenalty + progressPenalty;
@@ -220,8 +218,6 @@ class NavigationEngine {
   double _progressPenalty(
     double candidateAlong,
     double previousProgress,
-    double segmentStart,
-    double segmentLength,
   ) {
     final backwards = previousProgress - candidateAlong;
     if (backwards <= 8) return 0;
