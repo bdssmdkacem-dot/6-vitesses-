@@ -55,6 +55,8 @@ class NavigationEngine {
       offRoute: offRoute,
       routeBearingDegrees: routeBearing,
       nextManeuverDistanceMeters: nextManeuverDistance,
+      routeProgressMeters: tracking.alongMeters,
+      routeTotalMeters: route.distanceMeters,
     );
   }
 
