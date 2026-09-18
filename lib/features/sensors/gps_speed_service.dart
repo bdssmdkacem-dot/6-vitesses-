@@ -3,129 +3,129 @@ import 'dart:collection';
 import 'package:geolocator/geolocator.dart';
 
 class GpsSample {
-  const GpsSample({
-    required this.speedKmh,
-    required this.accuracyM,
-    required this.longitudinalAcceleration,
-    required this.timestamp,
-    required this.isStale,
-  });
-  final double speedKmh;
-  final double accuracyM;
-  final double longitudinalAcceleration;
+  const GpsSample({required this.speedKmh, required this.accuracyM, required this.longitudinalAcceleration, required this.timestamp, required this.isStale});
+  final double speedKmh, accuracyM, longitudinalAcceleration;
   final DateTime timestamp;
   final bool isStale;
 }
 
 class GpsSpeedService {
-  GpsSpeedService({
-    this.windowSize = 5,
-    this.maxAccuracyMeters = 50,
-    this.staleAfter = const Duration(seconds: 4),
-  });
-
+  GpsSpeedService({this.windowSize = 5, this.maxAccuracyMeters = 100, this.staleAfter = const Duration(seconds: 4)});
   final int windowSize;
   final double maxAccuracyMeters;
   final Duration staleAfter;
   final ListQueue<double> _window = ListQueue<double>();
   Position? _previous;
   DateTime? _lastUpdate;
-
   StreamSubscription<Position>? _subscription;
+  StreamSubscription<ServiceStatus>? _serviceSubscription;
+  Timer? _retryTimer;
   final _controller = StreamController<GpsSample>.broadcast();
+  bool _starting = false, _disposed = false;
+  LocationPermission _permission = LocationPermission.denied;
+  String _status = 'STARTING';
+  String? _lastError;
 
   Stream<GpsSample> get samples => _controller.stream;
+  bool get isStale => _lastUpdate == null || DateTime.now().difference(_lastUpdate!) > staleAfter;
+  String get status => _status;
+  String? get lastError => _lastError;
+  LocationPermission get permission => _permission;
+
+  Future<LocationPermission> refreshPermission() async {
+    _permission = await Geolocator.checkPermission();
+    return _permission;
+  }
+
+  Future<LocationPermission> requestLocationPermission() async {
+    _permission = await Geolocator.checkPermission();
+    if (_permission == LocationPermission.denied) _permission = await Geolocator.requestPermission();
+    return _permission;
+  }
 
   Future<void> start() async {
+    if (_disposed || _starting) return;
+    _starting = true;
+    try { await _ensurePermissionAndStream(); } finally {
+      _starting = false;
+      if (!_disposed) _scheduleRetry();
+    }
+  }
+
+  Future<void> _ensurePermissionAndStream() async {
+    if (_disposed) return;
     if (!await Geolocator.isLocationServiceEnabled()) {
-      _emitStale();
-      return;
+      _status = 'LOCATION OFF'; _emitStale(); _listenForServiceChanges(); return;
     }
+    final permission = await requestLocationPermission();
+    if (permission == LocationPermission.denied) { _status = 'PERMISSION DENIED'; _emitStale(); return; }
+    if (permission == LocationPermission.deniedForever) { _status = 'PERMISSION BLOCKED'; _emitStale(); return; }
 
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      _emitStale();
-      return;
-    }
+    _listenForServiceChanges();
+    await _subscription?.cancel();
+    _subscription = null;
+    _status = 'WAITING FOR FIX';
+    const settings = LocationSettings(accuracy: LocationAccuracy.bestForNavigation, distanceFilter: 0);
+    _subscription = Geolocator.getPositionStream(locationSettings: settings).listen(
+      _onPosition,
+      onError: (Object error) { _lastError = error.toString(); _status = 'STREAM ERROR'; _scheduleRetry(immediate: true); },
+      cancelOnError: false,
+    );
+    try {
+      final position = await Geolocator.getCurrentPosition(locationSettings: settings).timeout(const Duration(seconds: 12));
+      _onPosition(position);
+    } on TimeoutException { _status = 'NO FIX YET'; }
+    catch (error) { _lastError = error.toString(); _status = 'FIX ERROR'; }
+  }
 
-    _subscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 0,
-      ),
-    ).listen(_onPosition);
+  void _listenForServiceChanges() {
+    _serviceSubscription ??= Geolocator.getServiceStatusStream().listen((status) {
+      if (_disposed) return;
+      if (status == ServiceStatus.enabled) _scheduleRetry(immediate: true);
+      else { _status = 'LOCATION OFF'; _emitStale(); }
+    });
+  }
 
-    _emitStale();
+  void _scheduleRetry({bool immediate = false}) {
+    _retryTimer?.cancel();
+    if (_disposed) return;
+    _retryTimer = Timer(immediate ? const Duration(seconds: 2) : const Duration(seconds: 8), () {
+      if (!_disposed && (_subscription == null || isStale)) start();
+    });
   }
 
   void _onPosition(Position position) {
-    if (position.accuracy.isNaN ||
-        position.accuracy > maxAccuracyMeters ||
-        position.speed.isNaN ||
-        position.speed < 0) {
-      return;
-    }
-
+    if (_disposed) return;
+    if (position.timestamp.isAfter(DateTime.now().add(const Duration(minutes: 1)))) return;
+    if (position.accuracy.isNaN || position.accuracy > maxAccuracyMeters || position.speed.isNaN || position.speed < 0) return;
     final now = position.timestamp;
     final rawSpeed = (position.speed * 3.6).clamp(0.0, 400.0).toDouble();
     _window.addLast(rawSpeed);
-    while (_window.length > windowSize) {
-      _window.removeFirst();
-    }
-
+    while (_window.length > windowSize) _window.removeFirst();
     final speed = _median(_window);
     var acceleration = 0.0;
     final previous = _previous;
     if (previous != null) {
       final dt = now.difference(previous.timestamp).inMilliseconds / 1000.0;
-      if (dt >= 0.2 && dt <= 10) {
-        final previousSpeed = previous.speed * 3.6;
-        acceleration = (rawSpeed - previousSpeed) / dt / 3.6;
-        acceleration = acceleration.clamp(-12.0, 12.0).toDouble();
-      }
+      if (dt >= 0.2 && dt <= 10) acceleration = ((rawSpeed - previous.speed * 3.6) / dt / 3.6).clamp(-12.0, 12.0).toDouble();
     }
-
-    _previous = position;
-    _lastUpdate = now;
-    _controller.add(GpsSample(
-      speedKmh: speed,
-      accuracyM: position.accuracy,
-      longitudinalAcceleration: acceleration,
-      timestamp: now,
-      isStale: false,
-    ));
+    _previous = position; _lastUpdate = now; _status = 'LOCKED'; _lastError = null; _retryTimer?.cancel();
+    _controller.add(GpsSample(speedKmh: speed, accuracyM: position.accuracy, longitudinalAcceleration: acceleration, timestamp: now, isStale: false));
   }
 
   void _emitStale() {
-    _controller.add(GpsSample(
-      speedKmh: 0,
-      accuracyM: double.infinity,
-      longitudinalAcceleration: 0,
-      timestamp: DateTime.now(),
-      isStale: true,
-    ));
-  }
-
-  bool get isStale {
-    final last = _lastUpdate;
-    return last == null || DateTime.now().difference(last) > staleAfter;
+    if (_disposed || _controller.isClosed) return;
+    _controller.add(GpsSample(speedKmh: _window.isEmpty ? 0 : _median(_window), accuracyM: double.infinity, longitudinalAcceleration: 0, timestamp: DateTime.now(), isStale: true));
   }
 
   double _median(Iterable<double> values) {
     final sorted = values.toList()..sort();
     if (sorted.isEmpty) return 0;
     final middle = sorted.length ~/ 2;
-    if (sorted.length.isOdd) return sorted[middle];
-    return (sorted[middle - 1] + sorted[middle]) / 2;
+    return sorted.length.isOdd ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
   void dispose() {
-    _subscription?.cancel();
-    _subscription = null;
-    _controller.close();
+    _disposed = true; _retryTimer?.cancel(); _serviceSubscription?.cancel(); _subscription?.cancel(); _controller.close();
   }
 }
