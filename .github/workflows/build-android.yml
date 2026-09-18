@@ -41,6 +41,7 @@ jobs:
           "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-permissions.txt
           grep -q 'android.permission.ACCESS_FINE_LOCATION' /tmp/apk-permissions.txt
           grep -q 'android.permission.ACCESS_COARSE_LOCATION' /tmp/apk-permissions.txt
+          grep -q 'android.permission.INTERNET' /tmp/apk-permissions.txt
       - name: Build AAB
         run: flutter build appbundle --release
       - uses: actions/upload-artifact@v4
