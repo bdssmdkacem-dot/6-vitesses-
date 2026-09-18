@@ -62,7 +62,7 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ).listen(_onPosition);
     } catch (error) {
-      if (mounted) setState(() => _error = 'GPS: ${error}');
+      if (mounted) setState(() => _error = 'GPS: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -96,7 +96,7 @@ class _MapScreenState extends State<MapScreen> {
         setState(() => _error = 'No places found.');
       }
     } catch (error) {
-      if (mounted) setState(() => _error = 'Search unavailable: ${error}');
+      if (mounted) setState(() => _error = 'Search unavailable: $error');
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -136,7 +136,7 @@ class _MapScreenState extends State<MapScreen> {
       if (!mounted) return;
       setState(() => _route = route);
     } catch (error) {
-      if (mounted) setState(() => _error = 'Route unavailable: ${error}');
+      if (mounted) setState(() => _error = 'Route unavailable: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
