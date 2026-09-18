@@ -38,7 +38,6 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   DateTime? _lastTrafficFetch;
   LatLng? _lastPosition;
   double _lastHeading = 0;
-  List<TrafficSign> _trafficSigns = const [];
   RelevantTrafficSign? _relevantTrafficSign;
   OsrmRoute? _navigationRoute;
   NavigationState? _navigationState;
@@ -76,7 +75,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       final signs = await _trafficService.nearby(center: position);
       final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs);
       if (!mounted) return;
-      setState(() { _trafficSigns = signs; _relevantTrafficSign = relevant.isEmpty ? null : relevant.first; });
+      setState(() { _relevantTrafficSign = relevant.isEmpty ? null : relevant.first; });
     } catch (_) {
       // Navigation and HUD remain fully functional if OSM traffic data is unavailable.
     }
