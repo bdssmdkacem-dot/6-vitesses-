@@ -22,7 +22,7 @@ class _DigitalSpeed extends StatelessWidget {
   ]);
 }
 class _LinearSpeed extends StatelessWidget {
-  const _LinearSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate});
+  const _LinearSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel,required this.animate,required this.maxWidth});
   final double speed,maxSpeed; final HudTheme theme; final String unitLabel; final bool animate; final double maxWidth;
   @override Widget build(BuildContext context){final double v=(speed/maxSpeed).clamp(0.0,1.0).toDouble();final width=math.min(520.0,maxWidth*.42);return Column(mainAxisSize:MainAxisSize.min,children:[
     Text('${speed.toStringAsFixed(0)} $unitLabel',style:TextStyle(color:theme.accent,fontSize:48,fontWeight:FontWeight.w800)),
