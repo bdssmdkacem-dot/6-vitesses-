@@ -62,7 +62,9 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           _lastPosition = sample.position;
           _lastHeading = sample.headingDegrees;
           if (_navigationRoute != null && sample.position != null) {
-            _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!, speedKmh: sample.speedKmh, headingDegrees: sample.headingDegrees);
+            _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!, speedKmh: sample.speedKmh, headingDegrees: sample.headingDegrees,
+              previousRouteProgressMeters: _navigationState?.routeProgressMeters,
+            );
             if (_navigationState!.offRoute) {
               _offRouteSince ??= sample.timestamp;
               if (sample.timestamp.difference(_offRouteSince!) >= const Duration(seconds: 4)) {
@@ -89,7 +91,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     _lastTrafficFetch = now;
     try {
       final signs = await _trafficService.nearby(center: position);
-      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs, route: _navigationRoute?.geometry);
+      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs, route: _navigationRoute?.geometry,
+        vehicleRouteProgressMeters: _navigationState?.routeProgressMeters);
       if (!mounted) return;
       setState(() { _relevantTrafficSign = relevant.isEmpty ? null : relevant.first; });
     } catch (_) {
