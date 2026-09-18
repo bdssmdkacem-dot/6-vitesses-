@@ -39,9 +39,10 @@ class TrafficSignEngine {
       final bearing = _distance.bearing(vehiclePosition, sign.position);
       if (_angularDifference(headingDegrees, bearing) > aheadToleranceDegrees) continue;
       if (sign.directionDegrees != null && _angularDifference(sign.directionDegrees!, headingDegrees) > 100) continue;
-      if (route != null && route.length >= 2 &&
-          _distanceToRoute(sign.position, route) > routeToleranceMeters) {
-        continue;
+      if (route != null && route.length >= 2) {
+        final match = _routeMatch(sign.position, route);
+        if (match.distanceMeters > routeToleranceMeters) continue;
+        if (_angularDifference(headingDegrees, match.bearingDegrees) > aheadToleranceDegrees + 20) continue;
       }
       result.add(RelevantTrafficSign(sign: sign, distanceMeters: distanceMeters, bearingDegrees: bearing));
     }
@@ -60,6 +61,31 @@ class TrafficSignEngine {
       case TrafficSignType.roundabout: return 4;
       default: return 5;
     }
+  }
+
+  _RouteMatch _routeMatch(LatLng point, List<LatLng> route) {
+    var best = _RouteMatch(double.infinity, 0);
+    for (var i = 0; i < route.length - 1; i++) {
+      final start = route[i];
+      final end = route[i + 1];
+      final latRad = ((start.latitude + end.latitude) * 0.5) * math.pi / 180.0;
+      final cosLat = math.max(0.01, math.cos(latRad));
+      const scale = 111320.0;
+      final dx = (end.longitude - start.longitude) * scale * cosLat;
+      final dy = (end.latitude - start.latitude) * scale;
+      final px = (point.longitude - start.longitude) * scale * cosLat;
+      final py = (point.latitude - start.latitude) * scale;
+      final denom = dx * dx + dy * dy;
+      final f = denom <= 0.0001 ? 0.0 : (px * dx + py * dy) / denom;
+      final fraction = f.clamp(0.0, 1.0).toDouble();
+      final ex = px - dx * fraction;
+      final ey = py - dy * fraction;
+      final cross = math.sqrt(ex * ex + ey * ey);
+      if (cross < best.distanceMeters) {
+        best = _RouteMatch(cross, _distance.bearing(start, end));
+      }
+    }
+    return best;
   }
 
   double _distanceToRoute(LatLng point, List<LatLng> route) {
