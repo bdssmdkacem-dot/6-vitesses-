@@ -78,6 +78,9 @@ class OsrmRouteService {
           name: step['name']?.toString(),
           modifier: maneuver['modifier']?.toString(),
           exitNumber: (maneuver['exit'] as num?)?.toInt(),
+          bearingBefore: (maneuver['bearing_before'] as num?)?.toDouble(),
+          bearingAfter: (maneuver['bearing_after'] as num?)?.toDouble(),
+          roadRef: step['ref']?.toString(),
         ));
       }
     }
