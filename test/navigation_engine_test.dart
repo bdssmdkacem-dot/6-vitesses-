@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
-import '../lib/features/navigation/navigation_engine.dart';
-import '../lib/features/navigation/navigation_models.dart';
-import '../lib/features/navigation/osrm_route_service.dart';
+import 'package:six_vitesses/features/navigation/navigation_engine.dart';
+import 'package:six_vitesses/features/navigation/navigation_models.dart';
+import 'package:six_vitesses/features/navigation/osrm_route_service.dart';
 
 void main() {
   test('navigation engine selects the next maneuver and remaining route', () {
