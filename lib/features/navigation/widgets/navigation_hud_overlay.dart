@@ -14,9 +14,12 @@ class NavigationHudOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final maneuver = state.nextManeuver;
     if (maneuver == null) return const SizedBox.shrink();
-    return Positioned(
-      top: 42, left: 0, right: 0,
-      child: Center(
+    return Positioned.fill(
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 90),
+          child: Center(
         child: Container(
           constraints: const BoxConstraints(minWidth: 230, maxWidth: 430),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -42,6 +45,8 @@ class NavigationHudOverlay extends StatelessWidget {
               Text('${(state.remainingSeconds / 60).ceil()} min', style: TextStyle(color: secondary, fontSize: 10)),
             ]),
           ]),
+        ),
+          ),
         ),
       ),
     );
