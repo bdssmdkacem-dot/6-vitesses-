@@ -4,11 +4,12 @@ import 'package:latlong2/latlong.dart';
 enum TrafficSignType { stop, giveWay, speedLimit, trafficSignals, roundabout, crossing, motorway, oneWay, unknown }
 
 class TrafficSign {
-  const TrafficSign({required this.type, required this.position, this.value, this.name});
+  const TrafficSign({required this.type, required this.position, this.value, this.name, this.directionDegrees});
   final TrafficSignType type;
   final LatLng position;
   final int? value;
   final String? name;
+  final double? directionDegrees;
 }
 
 class RelevantTrafficSign {
@@ -37,6 +38,7 @@ class TrafficSignEngine {
       if (distanceMeters > maxDistanceMeters) continue;
       final bearing = _distance.bearing(vehiclePosition, sign.position);
       if (_angularDifference(headingDegrees, bearing) > aheadToleranceDegrees) continue;
+      if (sign.directionDegrees != null && _angularDifference(sign.directionDegrees!, headingDegrees) > 100) continue;
       if (route != null && route.length >= 2 &&
           _distanceToRoute(sign.position, route) > routeToleranceMeters) {
         continue;
