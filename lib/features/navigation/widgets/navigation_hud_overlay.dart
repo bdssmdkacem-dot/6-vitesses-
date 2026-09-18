@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../navigation_models.dart';
 import '../traffic_sign_engine.dart';
+import '../../hud/models/hud_theme.dart';
 
 class NavigationHudOverlay extends StatelessWidget {
-  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message});
+  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message, required this.style});
   final NavigationState state;
   final Color accent;
   final Color secondary;
