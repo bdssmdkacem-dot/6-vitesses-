@@ -29,7 +29,7 @@ class NavigationHudOverlay extends StatelessWidget {
               if (message != null) const SizedBox(height: 2),
               Text(_instruction(maneuver), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent, fontSize: 17, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
-              Text(_distance(maneuver.distanceMeters), style: TextStyle(color: secondary, fontSize: 12, fontWeight: FontWeight.w700)),
+              Text(_distance(state.nextManeuverDistanceMeters), style: TextStyle(color: secondary, fontSize: 12, fontWeight: FontWeight.w700)),
               if (maneuver.name != null && maneuver.name!.isNotEmpty) Text(maneuver.name!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12)),
             ])),
             if (trafficSign != null) ...[
