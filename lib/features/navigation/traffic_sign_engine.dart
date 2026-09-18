@@ -113,6 +113,13 @@ class TrafficSignEngine {
   }
 }
 
+
+class _RouteMatch {
+  const _RouteMatch(this.distanceMeters, this.bearingDegrees);
+  final double distanceMeters;
+  final double bearingDegrees;
+}
+
 TrafficSignType trafficSignTypeFromOsm(String value) {
   final normalized = value.toLowerCase().replaceAll('_', ':');
   if (normalized.contains('stop')) return TrafficSignType.stop;
