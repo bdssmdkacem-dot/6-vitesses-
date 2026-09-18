@@ -53,7 +53,7 @@ class NavigationHudOverlay extends StatelessWidget {
       case NavigationManeuverType.sharpLeft: return 'SHARP LEFT';
       case NavigationManeuverType.sharpRight: return 'SHARP RIGHT';
       case NavigationManeuverType.uTurn: return 'U-TURN';
-      case NavigationManeuverType.roundabout: return maneuver.exitNumber == null ? 'ROUNDABOUT' : 'ROUNDABOUT · EXIT ' + '${maneuver.exitNumber}';
+      case NavigationManeuverType.roundabout: return maneuver.exitNumber == null ? 'ROUNDABOUT' : 'ROUNDABOUT · EXIT ${maneuver.exitNumber}';
       case NavigationManeuverType.merge: return 'MERGE';
       case NavigationManeuverType.fork: return 'KEEP ${_side(maneuver.modifier)}';
       case NavigationManeuverType.offRamp: return 'EXIT';
