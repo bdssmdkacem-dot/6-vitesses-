@@ -31,6 +31,7 @@ class TrafficSignEngine {
     required double headingDegrees,
     required Iterable<TrafficSign> signs,
     List<LatLng>? route,
+    double? vehicleRouteProgressMeters,
   }) {
     final result = <RelevantTrafficSign>[];
     for (final sign in signs) {
@@ -43,6 +44,10 @@ class TrafficSignEngine {
         final match = _routeMatch(sign.position, route);
         if (match.distanceMeters > routeToleranceMeters) continue;
         if (_angularDifference(headingDegrees, match.bearingDegrees) > aheadToleranceDegrees + 20) continue;
+        if (vehicleRouteProgressMeters != null &&
+            match.alongMeters < vehicleRouteProgressMeters - 10) {
+          continue;
+        }
       }
       result.add(RelevantTrafficSign(sign: sign, distanceMeters: distanceMeters, bearingDegrees: bearing));
     }
@@ -64,7 +69,8 @@ class TrafficSignEngine {
   }
 
   _RouteMatch _routeMatch(LatLng point, List<LatLng> route) {
-    var best = _RouteMatch(double.infinity, 0);
+    var best = _RouteMatch(double.infinity, 0, 0);
+    var cumulative = 0.0;
     for (var i = 0; i < route.length - 1; i++) {
       final start = route[i];
       final end = route[i + 1];
@@ -82,8 +88,13 @@ class TrafficSignEngine {
       final ey = py - dy * fraction;
       final cross = math.sqrt(ex * ex + ey * ey);
       if (cross < best.distanceMeters) {
-        best = _RouteMatch(cross, _distance.bearing(start, end));
+        best = _RouteMatch(
+          cross,
+          _distance.bearing(start, end),
+          cumulative + _distance.as(LengthUnit.Meter, start, end) * fraction,
+        );
       }
+      cumulative += _distance.as(LengthUnit.Meter, start, end);
     }
     return best;
   }
@@ -96,9 +107,14 @@ class TrafficSignEngine {
 
 
 class _RouteMatch {
-  const _RouteMatch(this.distanceMeters, this.bearingDegrees);
+  const _RouteMatch(
+    this.distanceMeters,
+    this.bearingDegrees,
+    this.alongMeters,
+  );
   final double distanceMeters;
   final double bearingDegrees;
+  final double alongMeters;
 }
 
 TrafficSignType trafficSignTypeFromOsm(String value) {
