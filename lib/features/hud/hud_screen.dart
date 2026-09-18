@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import '../driving/drive_history.dart';
 import '../driving/drive_history_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -10,6 +11,8 @@ import '../navigation/map_screen.dart';
 import '../navigation/navigation_engine.dart';
 import '../navigation/navigation_models.dart';
 import '../navigation/osrm_route_service.dart';
+import '../navigation/osm_traffic_service.dart';
+import '../navigation/traffic_sign_engine.dart';
 import '../navigation/widgets/navigation_hud_overlay.dart';
 import '../settings/app_settings.dart';
 import '../sensors/gps_speed_service.dart';
@@ -29,6 +32,14 @@ class HudScreen extends StatefulWidget {
 class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   final _session=DrivingSession(),_gpsService=GpsSpeedService(),_motionService=MotionSensorService();
   final _navigationEngine = const NavigationEngine();
+  final _trafficService = OsmTrafficService();
+  final _trafficEngine = TrafficSignEngine();
+  Timer? _trafficTimer;
+  DateTime? _lastTrafficFetch;
+  LatLng? _lastPosition;
+  double _lastHeading = 0;
+  List<TrafficSign> _trafficSigns = const [];
+  RelevantTrafficSign? _relevantTrafficSign;
   OsrmRoute? _navigationRoute;
   NavigationState? _navigationState;
   StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; Timer? _gpsWatchdog;
@@ -44,12 +55,33 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   Future<void> _startSensors()async{
     _gpsSub ??= _gpsService.samples.listen((sample){if(!mounted)return;if(!sample.isStale){_motionService.updateVehicleSpeed(sample.speedKmh,sample.timestamp);}setState((){if(!sample.isStale){
           _speed=sample.speedKmh;_longitudinalAccel=sample.longitudinalAcceleration;
+          _lastPosition = sample.position;
+          _lastHeading = sample.headingDegrees;
           if (_navigationRoute != null && sample.position != null) {
             _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!);
           }if(_speed>_maxSpeed)_maxSpeed=_speed;if(_longitudinalAccel>_maxAccel)_maxAccel=_longitudinalAccel;if(_longitudinalAccel<_maxBraking)_maxBraking=_longitudinalAccel;}_gpsStale=sample.isStale;});if(_session.active&&!sample.isStale)_session.addSample(speedKmh:sample.speedKmh,acceleration:sample.longitudinalAcceleration,timestamp:sample.timestamp);});
     _motionSub ??= _motionService.samples.listen((sample){if(!mounted)return;setState((){_longitudinalAccel=sample.longitudinalAcceleration;_totalAccel=sample.totalAcceleration;if(sample.longitudinalAcceleration>_maxAccel)_maxAccel=sample.longitudinalAcceleration;if(sample.longitudinalAcceleration<_maxBraking)_maxBraking=sample.longitudinalAcceleration;});});
-    _motionService.start();await _gpsService.start();_gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:1),(_){if(!mounted)return;final stale=_gpsService.isStale;if(stale!=_gpsStale)setState(()=>_gpsStale=stale);if(stale)_gpsService.start();});if(mounted)setState(()=>_ready=true);
+    _motionService.start();await _gpsService.start();
+    _trafficTimer?.cancel();
+    _trafficTimer = Timer.periodic(const Duration(seconds: 5), (_) { _refreshTrafficSigns(); });
+    _gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:1),(_){if(!mounted)return;final stale=_gpsService.isStale;if(stale!=_gpsStale)setState(()=>_gpsStale=stale);if(stale)_gpsService.start();});if(mounted)setState(()=>_ready=true);
   }
+  Future<void> _refreshTrafficSigns() async {
+    final position = _lastPosition;
+    if (!_session.active || position == null) return;
+    final now = DateTime.now();
+    if (_lastTrafficFetch != null && now.difference(_lastTrafficFetch!) < const Duration(seconds: 20)) return;
+    _lastTrafficFetch = now;
+    try {
+      final signs = await _trafficService.nearby(center: position);
+      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs);
+      if (!mounted) return;
+      setState(() { _trafficSigns = signs; _relevantTrafficSign = relevant.isEmpty ? null : relevant.first; });
+    } catch (_) {
+      // Navigation and HUD remain fully functional if OSM traffic data is unavailable.
+    }
+  }
+
   void _showGpsDiagnostics() {
     showDialog<void>(
       context: context,
@@ -241,7 +273,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       SafeArea(child:Stack(children:[
         Center(child:SpeedGauge(speed:widget.settings.toDisplaySpeed(_speed),maxSpeed:widget.settings.toDisplaySpeed(widget.settings.speedLimit),style:_style,theme:_theme,unitLabel:unitLabel,animate:widget.settings.animations)),
         if(showRpm)Positioned(top:navigationActive ? 8 : (compact?8:42),left:0,right:0,child:Center(child:RpmIndicator(rpm:_rpm,theme:_theme,style:_theme.rpmStyle,animate:widget.settings.animations))),
-        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary),
+        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,trafficSign:_relevantTrafficSign),
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
         Positioned(right:18,top:12,child:GearIndicator(gear:_gear,theme:_theme,enabled:!_session.active)),
         if(!compact)Positioned(left:18,bottom:14,child:Row(children:[
@@ -275,7 +307,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ]),
     );
   }
-  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
 }
 class _Metric extends StatelessWidget {
   const _Metric(this.label,this.value); final String label,value;
