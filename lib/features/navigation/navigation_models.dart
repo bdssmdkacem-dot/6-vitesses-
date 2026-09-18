@@ -13,12 +13,24 @@ class NavigationManeuver {
 }
 
 class NavigationState {
-  const NavigationState({required this.route, required this.maneuvers, required this.nextIndex, required this.remainingMeters, required this.remainingSeconds});
+  const NavigationState({
+    required this.route,
+    required this.maneuvers,
+    required this.nextIndex,
+    required this.remainingMeters,
+    required this.remainingSeconds,
+    required this.distanceFromRouteMeters,
+    required this.offRoute,
+    this.routeBearingDegrees = 0,
+  });
   final List<LatLng> route;
   final List<NavigationManeuver> maneuvers;
   final int nextIndex;
   final double remainingMeters;
   final double remainingSeconds;
+  final double distanceFromRouteMeters;
+  final bool offRoute;
+  final double routeBearingDegrees;
   NavigationManeuver? get nextManeuver => nextIndex >= 0 && nextIndex < maneuvers.length ? maneuvers[nextIndex] : null;
   bool get arrived => nextManeuver?.type == NavigationManeuverType.arrive;
 }
