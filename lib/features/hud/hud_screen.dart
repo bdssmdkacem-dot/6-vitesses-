@@ -6,6 +6,7 @@ import '../driving/drive_history.dart';
 import '../driving/drive_history_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../driving/driving_session.dart';
+import '../navigation/map_screen.dart';
 import '../settings/app_settings.dart';
 import '../sensors/gps_speed_service.dart';
 import '../sensors/motion_sensor_service.dart';
@@ -248,6 +249,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           child:hudLayer,
         ),
         SafeArea(child:Stack(children:[
+          if(!_session.active)Positioned(right:132,top:8,child:IconButton(onPressed:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>const MapScreen())),icon:Icon(Icons.map,color:_theme.accent),tooltip:'Map')),
           if(!_session.active)Positioned(right:86,top:8,child:IconButton(onPressed:_settings,icon:Icon(Icons.tune,color:_theme.accent),tooltip:'Settings')),
           if(_session.active)Positioned(right:18,top:10,child:FilledButton.icon(onPressed:_stopDrive,icon:const Icon(Icons.stop,size:16),label:const Text('STOP'))),
           if(!_session.active&&!compact)Positioned(right:18,bottom:14,child:IconButton(onPressed:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>DriveHistoryScreen(history:widget.history))),icon:Icon(Icons.history,color:_theme.accent),tooltip:'History')),
