@@ -1,0 +1,25 @@
+import 'package:latlong2/latlong.dart';
+import 'osrm_route_service.dart';
+
+enum NavigationManeuverType { depart, arrive, turnLeft, turnRight, sharpLeft, sharpRight, uTurn, straight, roundabout, merge, fork, offRamp, onRamp, endOfRoad, unknown }
+
+class NavigationManeuver {
+  const NavigationManeuver({required this.type, required this.position, required this.distanceMeters, this.name, this.modifier, this.exitNumber});
+  final NavigationManeuverType type;
+  final LatLng position;
+  final double distanceMeters;
+  final String? name;
+  final String? modifier;
+  final int? exitNumber;
+}
+
+class NavigationState {
+  const NavigationState({required this.route, required this.maneuvers, required this.nextIndex, required this.remainingMeters, required this.remainingSeconds});
+  final List<LatLng> route;
+  final List<NavigationManeuver> maneuvers;
+  final int nextIndex;
+  final double remainingMeters;
+  final double remainingSeconds;
+  NavigationManeuver? get nextManeuver => nextIndex >= 0 && nextIndex < maneuvers.length ? maneuvers[nextIndex] : null;
+  bool get arrived => nextManeuver?.type == NavigationManeuverType.arrive;
+}
