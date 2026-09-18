@@ -10,6 +10,7 @@ import '../driving/driving_session.dart';
 import '../navigation/map_screen.dart';
 import '../navigation/navigation_engine.dart';
 import '../navigation/navigation_models.dart';
+import '../navigation/navigation_session_controller.dart';
 import '../navigation/osrm_route_service.dart';
 import '../navigation/osm_traffic_service.dart';
 import '../navigation/traffic_sign_engine.dart';
@@ -32,6 +33,7 @@ class HudScreen extends StatefulWidget {
 class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   final _session=DrivingSession(),_gpsService=GpsSpeedService(),_motionService=MotionSensorService();
   final _navigationEngine = const NavigationEngine();
+  final _navigationSession = NavigationSessionController();
   final _routeService = OsrmRouteService();
   final _trafficService = OsmTrafficService();
   final _trafficEngine = TrafficSignEngine();
@@ -40,9 +42,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   LatLng? _lastPosition;
   double _lastHeading = 0;
   RelevantTrafficSign? _relevantTrafficSign;
-  DateTime? _offRouteSince;
-  DateTime? _lastRerouteAttempt;
-  bool _rerouteInProgress = false;
+  
   String? _navigationMessage;
   OsrmRoute? _navigationRoute;
   NavigationState? _navigationState;
@@ -66,15 +66,10 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               previousRouteProgressMeters: _navigationState?.routeProgressMeters,
               previousRouteSegmentIndex: _navigationState?.routeSegmentIndex,
             );
-            if (_navigationState!.offRoute) {
-              _offRouteSince ??= sample.timestamp;
-              if (sample.timestamp.difference(_offRouteSince!) >= const Duration(seconds: 4)) {
-                final lastAttempt = _lastRerouteAttempt;
-                final cooldownOk = lastAttempt == null || sample.timestamp.difference(lastAttempt) >= const Duration(seconds: 20);
-                if (cooldownOk) unawaited(_rerouteFromCurrentPosition(sample.position!, sample.timestamp));
-              }
-            } else {
-              _offRouteSince = null;
+            _navigationSession.update(_navigationState!, sample.timestamp);
+            if (_navigationSession.shouldReroute(sample.timestamp)) {
+              unawaited(_rerouteFromCurrentPosition(sample.position!, sample.timestamp));
+            } else if (!_navigationState!.offRoute && _navigationSession.status == NavigationSessionStatus.navigating) {
               _navigationMessage = null;
             }
           }if(_speed>_maxSpeed)_maxSpeed=_speed;if(_longitudinalAccel>_maxAccel)_maxAccel=_longitudinalAccel;if(_longitudinalAccel<_maxBraking)_maxBraking=_longitudinalAccel;}_gpsStale=sample.isStale;});if(_session.active&&!sample.isStale)_session.addSample(speedKmh:sample.speedKmh,acceleration:sample.longitudinalAcceleration,timestamp:sample.timestamp);});
@@ -153,36 +148,35 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ),
     );
   }
-  void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;_offRouteSince=null;_lastRerouteAttempt=null;_navigationMessage=null;});}
+  void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;_navigationMessage=null;});}
   Future<void> _rerouteFromCurrentPosition(LatLng position, DateTime attemptTime) async {
     final destination = _navigationRoute?.destination;
-    if (destination == null || _rerouteInProgress || !_session.active) return;
-    _lastRerouteAttempt = attemptTime;
-    _rerouteInProgress = true;
+    if (destination == null || _navigationSession.rerouteInProgress || !_session.active) return;
+    _navigationSession.beginReroute(attemptTime);
     if (mounted) setState(() => _navigationMessage = 'RE-ROUTING…');
     try {
       final route = await _routeService.route(start: position, destination: destination);
       if (!mounted || !_session.active) return;
+      final nextState = _navigationEngine.update(
+        route: route,
+        position: position,
+        speedKmh: _speed,
+        headingDegrees: _lastHeading,
+      );
+      _navigationSession.rerouteSucceeded(route);
       setState(() {
         _navigationRoute = route;
-        _navigationState = _navigationEngine.update(
-          route: route,
-          position: position,
-          speedKmh: _speed,
-          headingDegrees: _lastHeading,
-        );
-        _offRouteSince = null;
+        _navigationState = nextState;
         _navigationMessage = null;
       });
       _lastTrafficFetch = null;
     } catch (_) {
+      _navigationSession.rerouteFailed();
       if (mounted) setState(() => _navigationMessage = 'OFF ROUTE • NETWORK UNAVAILABLE');
-    } finally {
-      _rerouteInProgress = false;
     }
   }
 
-  Future<void> _stopDrive()async{final record=_session.stop();await widget.history.add(record);if(mounted)setState((){_offRouteSince=null;_navigationMessage=null;});}
+  Future<void> _stopDrive()async{final record=_session.stop();await widget.history.add(record);_navigationSession.stop();if(mounted)setState((){_navigationMessage=null;});}
   void _settings() {
     if (_session.active) return;
     showModalBottomSheet<void>(
@@ -344,7 +338,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           if(!_session.active)Positioned(right:132,top:8,child:IconButton(onPressed:() async {
             await Navigator.of(context).push(MaterialPageRoute(builder:(_) => MapScreen(onRouteReady:(route) {
               if (!mounted) return;
-              setState(() { _navigationRoute = route; _navigationState = null; _navigationMessage = null; _offRouteSince = null; });
+              setState(() { _navigationRoute = route; _navigationState = null; _navigationMessage = null; });
+              _navigationSession.start(route);
               _startDrive();
             })));
           },icon:Icon(Icons.map,color:_theme.accent),tooltip:'Map')),
@@ -355,7 +350,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ]),
     );
   }
-  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_routeService.dispose();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_routeService.dispose();_navigationSession.stop();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
 }
 class _Metric extends StatelessWidget {
   const _Metric(this.label,this.value); final String label,value;
