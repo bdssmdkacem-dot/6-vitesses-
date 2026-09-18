@@ -28,7 +28,9 @@ class NavigationEngine {
         ? route.distanceMeters / route.durationSeconds
         : 13.9;
     final currentSpeedMps = speedKmh > 2 ? speedKmh / 3.6 : baselineSpeedMps;
-    final etaSeconds = remaining <= 1 ? 0 : remaining / math.max(1.0, currentSpeedMps);
+    final etaSeconds = remaining <= 1.0
+        ? 0.0
+        : (remaining / math.max(1.0, currentSpeedMps)).toDouble();
 
     final routeBearing = tracking.bearingDegrees;
     final headingDelta = _angularDifference(headingDegrees, routeBearing);
