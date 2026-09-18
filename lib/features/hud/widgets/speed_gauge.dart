@@ -20,7 +20,7 @@ class _DigitalSpeed extends StatelessWidget {
   const _DigitalSpeed({required this.speed,required this.maxSpeed,required this.theme,required this.unitLabel});
   final double speed,maxSpeed; final HudTheme theme; final String unitLabel;
   @override Widget build(BuildContext context){
-    final ratio=maxSpeed<=0?0:(speed/maxSpeed).clamp(0.0,1.0);
+    final double ratio=maxSpeed<=0?0.0:(speed/maxSpeed).clamp(0.0,1.0).toDouble();
     return Column(mainAxisSize:MainAxisSize.min,children:[
       Row(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.end,children:[
         Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:132,fontWeight:FontWeight.w900,height:.78,letterSpacing:-4,shadows:theme.glow?[Shadow(color:theme.accent.withValues(alpha:.45),blurRadius:20)]:const[])),
