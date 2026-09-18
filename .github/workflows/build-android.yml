@@ -18,16 +18,23 @@ jobs:
           cache: true
       - name: Generate Android project
         run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
-      - name: Add location permissions
+      - name: Add Android permissions
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
           marker = '<application'
-          permissions = '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n'
-          if 'ACCESS_FINE_LOCATION' not in s:
+          permissions = (
+              '    <uses-permission android:name="android.permission.INTERNET"/>\n'
+              '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n'
+              '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n'
+          )
+          if '<uses-permission android:name="android.permission.INTERNET"/>' not in s:
               s = s.replace(marker, permissions + marker)
+          else:
+              if 'ACCESS_FINE_LOCATION' not in s:
+                  s = s.replace(marker, permissions + marker)
           p.write_text(s)
           PY
       - run: flutter pub get
@@ -35,13 +42,13 @@ jobs:
       - run: flutter test
       - name: Build APK
         run: flutter build apk --release
-      - name: Verify APK location permissions
+      - name: Verify APK permissions
         run: |
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
           "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-permissions.txt
-          grep -q 'android.permission.ACCESS_FINE_LOCATION' /tmp/apk-permissions.txt
-          grep -q 'android.permission.ACCESS_COARSE_LOCATION' /tmp/apk-permissions.txt
-          grep -q 'android.permission.INTERNET' /tmp/apk-permissions.txt
+          grep -q "android.permission.ACCESS_FINE_LOCATION" /tmp/apk-permissions.txt
+          grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
+          grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
       - name: Build AAB
         run: flutter build appbundle --release
       - uses: actions/upload-artifact@v4
