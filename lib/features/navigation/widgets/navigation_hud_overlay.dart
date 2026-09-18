@@ -17,10 +17,13 @@ class NavigationHudOverlay extends StatelessWidget {
     return Positioned.fill(
       child: Align(
         alignment: Alignment.centerRight,
-        child: Padding(
-          padding: const EdgeInsets.only(right: 12, left: 12),
-          child: Center(
-            child: Container(
+        child: FractionallySizedBox(
+          widthFactor: .38,
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 10, left: 8),
+            child: Center(
+              child: Container(
           constraints: const BoxConstraints(minWidth: 230, maxWidth: 430),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: .58), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: .65))),
@@ -46,6 +49,8 @@ class NavigationHudOverlay extends StatelessWidget {
             ]),
           ]),
         ),
+              ),
+            ),
           ),
         ),
       ),
