@@ -48,7 +48,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   NavigationState? _navigationState;
   StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; Timer? _gpsWatchdog;
   double _speed=0,_longitudinalAccel=0,_totalAccel=0,_maxSpeed=0,_maxAccel=0,_maxBraking=0; double? _rpm;
-  int _gear=0; bool _mirror=false,_ready=false,_gpsStale=true; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
+  bool _mirror=false,_ready=false,_gpsStale=true; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
   Future<void> _initializeHud() async {await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);if(!mounted)return;final permission=await _gpsService.requestLocationPermission();if(!mounted)return;if(permission==LocationPermission.denied){await _showLocationPermissionDenied();}else if(permission==LocationPermission.deniedForever){await _showLocationPermissionBlocked();}if(!mounted)return;await _enterHud();await _startSensors();}
@@ -297,7 +297,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   }
 
   @override Widget build(BuildContext context){
-    _theme=widget.settings.theme;_style=widget.settings.gauge;_mirror=widget.settings.mirror;_gear=widget.settings.gear;
+    _theme=widget.settings.theme;_style=widget.settings.gauge;_mirror=widget.settings.mirror;
     final unitLabel=widget.settings.unit==SpeedUnit.kmh?'km/h':'mph',showRpm=widget.settings.showRpm&&_theme.showRpm,compact=widget.settings.compact;
     final displayGear = _estimatedGear(_speed);
 
