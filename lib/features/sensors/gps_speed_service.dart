@@ -96,7 +96,10 @@ class GpsSpeedService {
     _serviceSubscription ??= Geolocator.getServiceStatusStream().listen((status) {
       if (_disposed) return;
       if (status == ServiceStatus.enabled) _scheduleRetry(immediate: true);
-      else { _status = 'LOCATION OFF'; _emitStale(); }
+      else {
+        _status = 'LOCATION OFF';
+        _emitStale();
+      }
     });
   }
 
