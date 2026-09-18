@@ -36,32 +36,131 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   }
   void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;});}
   Future<void> _stopDrive()async{final record=_session.stop();await widget.history.add(record);if(mounted)setState((){});}
-  void _settings(){
-    if(_session.active)return;
-    showModalBottomSheet(context:context,backgroundColor:_theme.background,isScrollControlled:true,builder:(_)=>StatefulBuilder(builder:(context,setSheet)=>SingleChildScrollView(
-      padding:const EdgeInsets.fromLTRB(20,20,20,28),child:Column(mainAxisSize:MainAxisSize.min,children:[
-        Text('HUD SETTINGS',style:TextStyle(color:_theme.accent,fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:12),
-        Wrap(spacing:8,runSpacing:8,children:HudTheme.all.map((theme)=>ChoiceChip(label:Text(theme.name),selected:_theme==theme,onSelected:(_)async{await widget.settings.setTheme(theme);await widget.settings.setGauge(theme.defaultGauge);setState((){_theme=theme;_style=theme.defaultGauge;});setSheet((){});})).toList()),
-        const SizedBox(height:12),
-        Wrap(spacing:8,children:HudGaugeStyle.values.map((style)=>ChoiceChip(label:Text(style.name.toUpperCase()),selected:_style==style,onSelected:(_)async{await widget.settings.setGauge(style);setState(()=>_style=style);setSheet((){});})).toList()),
-        const SizedBox(height:8),
-        GearIndicator(gear:_gear,theme:_theme),
-        Wrap(spacing:6,children:List.generate(7,(index)=>ChoiceChip(label:Text(index==0?'N':'$index'),selected:_gear==index,onSelected:(_)async{await widget.settings.setGear(index);setState(()=>_gear=index);setSheet((){});})).toList()),
-        ListTile(title:Text(widget.settings.vehicleName),subtitle:Text(widget.settings.vehicleModel.isEmpty?'Vehicle profile':widget.settings.vehicleModel),leading:const Icon(Icons.directions_car),onTap:()async{
-          final name=TextEditingController(text:widget.settings.vehicleName),model=TextEditingController(text:widget.settings.vehicleModel);
-          await showDialog<void>(context:context,builder:(_)=>AlertDialog(title:const Text('Vehicle profile'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:name,decoration:const InputDecoration(labelText:'Name')),TextField(controller:model,decoration:const InputDecoration(labelText:'Model'))]),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:()async{await widget.settings.setVehicle(name:name.text,model:model.text);if(context.mounted)Navigator.pop(context);setSheet((){});},child:const Text('Save'))]));
-        }),
-        DropdownButtonFormField<SpeedUnit>(initialValue:widget.settings.unit,decoration:const InputDecoration(labelText:'Speed unit'),items:const[DropdownMenuItem(value:SpeedUnit.kmh,child:Text('km/h')),DropdownMenuItem(value:SpeedUnit.mph,child:Text('mph'))],onChanged:(value)async{if(value!=null)await widget.settings.setUnit(value);setSheet((){});}),
-        const SizedBox(height:8),
-        ListTile(title:Text('Gauge limit: ${widget.settings.speedLimit.toStringAsFixed(0)}'),subtitle:Slider(min:60,max:360,divisions:30,value:widget.settings.speedLimit,onChanged:(value)async{await widget.settings.setSpeedLimit(value);setSheet((){});})),
-        SwitchListTile(title:const Text('Animations'),subtitle:const Text('Smooth speed, gauge and background motion'),value:widget.settings.animations,onChanged:(value)async{await widget.settings.setAnimations(value);setSheet((){});}),
-        SwitchListTile(title:const Text('RPM indicator'),subtitle:Text(widget.settings.obdEnabled?'Waiting for OBD-II telemetry':'Ready for OBD-II'),value:widget.settings.showRpm,onChanged:(value)async{await widget.settings.setShowRpm(value);setSheet((){});}),
-        SwitchListTile(title:const Text('Compact HUD'),subtitle:const Text('Reduce secondary information while driving'),value:widget.settings.compact,onChanged:(value)async{await widget.settings.setCompact(value);setSheet((){});}),
-        SwitchListTile(title:const Text('OBD-II ready'),subtitle:const Text('GPS remains the fallback source until a Bluetooth adapter is connected.'),value:widget.settings.obdEnabled,onChanged:(value)async{await widget.settings.setObdEnabled(value);setSheet((){});}),
-        SwitchListTile(title:const Text('Mirror HUD'),value:_mirror,onChanged:(value)async{await widget.settings.setMirror(value);setState(()=>_mirror=value);setSheet((){});}),
-        const SizedBox(height:8),
-        FilledButton.icon(onPressed:(){_startDrive();Navigator.pop(context);},icon:const Icon(Icons.play_arrow),label:const Text('START DRIVE')),
-      ]))));
+  void _settings() {
+    if (_session.active) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _theme.background,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheet) {
+          final themes = HudTheme.all.map<Widget>((theme) => ChoiceChip(
+            label: Text(theme.name), selected: _theme == theme,
+            onSelected: (_) async {
+              await widget.settings.setTheme(theme);
+              await widget.settings.setGauge(theme.defaultGauge);
+              if (!mounted) return;
+              setState(() { _theme = theme; _style = theme.defaultGauge; });
+              setSheet(() {});
+            },
+          )).toList();
+
+          final gauges = HudGaugeStyle.values.map<Widget>((style) => ChoiceChip(
+            label: Text(style.name.toUpperCase()), selected: _style == style,
+            onSelected: (_) async {
+              await widget.settings.setGauge(style);
+              if (!mounted) return;
+              setState(() => _style = style);
+              setSheet(() {});
+            },
+          )).toList();
+
+          final gears = List<Widget>.generate(7, (index) => ChoiceChip(
+            label: Text(index == 0 ? 'N' : '$index'),
+            selected: _gear == index,
+            onSelected: (_) async {
+              await widget.settings.setGear(index);
+              if (!mounted) return;
+              setState(() => _gear = index);
+              setSheet(() {});
+            },
+          ));
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('HUD SETTINGS', style: TextStyle(color: _theme.accent, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: themes),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: gauges),
+                const SizedBox(height: 8),
+                GearIndicator(gear: _gear, theme: _theme),
+                const SizedBox(height: 6),
+                Wrap(spacing: 6, children: gears),
+                ListTile(
+                  title: Text(widget.settings.vehicleName),
+                  subtitle: Text(widget.settings.vehicleModel.isEmpty ? 'Vehicle profile' : widget.settings.vehicleModel),
+                  leading: const Icon(Icons.directions_car),
+                  onTap: () async {
+                    final name = TextEditingController(text: widget.settings.vehicleName);
+                    final model = TextEditingController(text: widget.settings.vehicleModel);
+                    await showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Vehicle profile'),
+                        content: Column(mainAxisSize: MainAxisSize.min, children: [
+                          TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+                          TextField(controller: model, decoration: const InputDecoration(labelText: 'Model')),
+                        ]),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                          FilledButton(
+                            onPressed: () async {
+                              await widget.settings.setVehicle(name: name.text, model: model.text);
+                              if (dialogContext.mounted) Navigator.pop(dialogContext);
+                              setSheet(() {});
+                            },
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    );
+                    name.dispose();
+                    model.dispose();
+                  },
+                ),
+                DropdownButtonFormField<SpeedUnit>(
+                  initialValue: widget.settings.unit,
+                  decoration: const InputDecoration(labelText: 'Speed unit'),
+                  items: const [
+                    DropdownMenuItem(value: SpeedUnit.kmh, child: Text('km/h')),
+                    DropdownMenuItem(value: SpeedUnit.mph, child: Text('mph')),
+                  ],
+                  onChanged: (value) async {
+                    if (value != null) {
+                      await widget.settings.setUnit(value);
+                      setSheet(() {});
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  title: Text('Gauge limit: \${widget.settings.speedLimit.toStringAsFixed(0)}'),
+                  subtitle: Slider(
+                    min: 60, max: 360, divisions: 30,
+                    value: widget.settings.speedLimit.clamp(60.0, 360.0).toDouble(),
+                    onChanged: (value) async {
+                      await widget.settings.setSpeedLimit(value);
+                      setSheet(() {});
+                    },
+                  ),
+                ),
+                SwitchListTile(title: const Text('Animations'), subtitle: const Text('Smooth speed, gauge and background motion'), value: widget.settings.animations, onChanged: (value) async { await widget.settings.setAnimations(value); setSheet(() {}); }),
+                SwitchListTile(title: const Text('RPM indicator'), subtitle: Text(widget.settings.obdEnabled ? 'Waiting for OBD-II telemetry' : 'Ready for OBD-II'), value: widget.settings.showRpm, onChanged: (value) async { await widget.settings.setShowRpm(value); setSheet(() {}); }),
+                SwitchListTile(title: const Text('Compact HUD'), subtitle: const Text('Reduce secondary information while driving'), value: widget.settings.compact, onChanged: (value) async { await widget.settings.setCompact(value); setSheet(() {}); }),
+                SwitchListTile(title: const Text('OBD-II ready'), subtitle: const Text('GPS remains the fallback source until a Bluetooth adapter is connected.'), value: widget.settings.obdEnabled, onChanged: (value) async { await widget.settings.setObdEnabled(value); setSheet(() {}); }),
+                SwitchListTile(title: const Text('Mirror HUD'), value: _mirror, onChanged: (value) async { await widget.settings.setMirror(value); if (!mounted) return; setState(() => _mirror = value); setSheet(() {}); }),
+                const SizedBox(height: 8),
+                FilledButton.icon(onPressed: () { _startDrive(); Navigator.pop(context); }, icon: const Icon(Icons.play_arrow), label: const Text('START DRIVE')),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override Widget build(BuildContext context){
