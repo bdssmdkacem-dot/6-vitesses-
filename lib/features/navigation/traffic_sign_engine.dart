@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 
 enum TrafficSignType { stop, giveWay, speedLimit, trafficSignals, roundabout, crossing, motorway, oneWay, unknown }
@@ -66,7 +67,8 @@ class TrafficSignEngine {
       final end = route[i + 1];
       final startDistance = _distance.as(LengthUnit.Meter, point, start);
       final endDistance = _distance.as(LengthUnit.Meter, point, end);
-      final fraction = (startDistance / (startDistance + endDistance)).clamp(0.0, 1.0);
+      final denominator = math.max(0.001, startDistance + endDistance).toDouble();
+      final fraction = (startDistance / denominator).clamp(0.0, 1.0).toDouble();
       final projected = LatLng(
         start.latitude + (end.latitude - start.latitude) * fraction,
         start.longitude + (end.longitude - start.longitude) * fraction,
