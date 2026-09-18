@@ -76,6 +76,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         await widget.settings.setCompact(false);
         await widget.settings.setShowRpm(true);
         await widget.settings.setAnimations(true);
+        await widget.settings.setMirror(false);
         break;
       case HudPreset.night:
         await widget.settings.setTheme(HudTheme.ice);
@@ -83,6 +84,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         await widget.settings.setCompact(true);
         await widget.settings.setShowRpm(false);
         await widget.settings.setAnimations(false);
+        await widget.settings.setMirror(false);
         break;
       case HudPreset.windshield:
         await widget.settings.setTheme(HudTheme.midnight);
@@ -98,6 +100,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         await widget.settings.setCompact(false);
         await widget.settings.setShowRpm(true);
         await widget.settings.setAnimations(true);
+        await widget.settings.setMirror(false);
         break;
     }
     await widget.settings.setPreset(preset);
@@ -107,7 +110,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     if(_session.active)return;
     showModalBottomSheet(context:context,backgroundColor:_theme.background,isScrollControlled:true,builder:(_)=>StatefulBuilder(builder:(context,setSheet)=>SingleChildScrollView(
       padding:const EdgeInsets.fromLTRB(20,20,20,28),child:Column(mainAxisSize:MainAxisSize.min,children:[
-        Text('HUD SETTINGS',style:TextStyle(color:_theme.accent,fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:12),\n        Text('DASHBOARD PRESETS',style:TextStyle(color:_theme.secondary,fontSize:11,fontWeight:FontWeight.w700)),
+        Text('HUD SETTINGS',style:TextStyle(color:_theme.accent,fontSize:18,fontWeight:FontWeight.bold)),const SizedBox(height:12),
+        Text('DASHBOARD PRESETS',style:TextStyle(color:_theme.secondary,fontSize:11,fontWeight:FontWeight.w700)),
         const SizedBox(height:8),
         Wrap(spacing:8,runSpacing:8,children:HudPreset.values.map((preset)=>ChoiceChip(label:Text(preset.name.toUpperCase()),selected:widget.settings.preset==preset,onSelected:(_)=>_applyPreset(preset)).toList()),
         const SizedBox(height:12),
@@ -144,7 +148,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(showRpm)Positioned(top:compact?8:42,left:0,right:0,child:Center(child:RpmIndicator(rpm:_rpm,theme:_theme,style:_theme.rpmStyle,animate:widget.settings.animations))),
         Positioned(left:0,right:0,top:10,child:Center(child:Text(widget.settings.vehicleName.toUpperCase(),style:TextStyle(color:_theme.secondary,fontSize:10,fontWeight:FontWeight.w700,letterSpacing:2)))),
         Positioned(left:18,top:14,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS ±${_gpsAccuracy.isFinite?_gpsAccuracy.toStringAsFixed(0):'--'}m',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700))])),
-        Positioned(right:18,top:12,child:GearIndicator(gear:_gear,theme:_theme,enabled:!_session.active)),\n        Positioned(right:86,top:14,child:_SpeedLimitBadge(speed:_speed,limit:widget.settings.toDisplaySpeed(widget.settings.speedLimit),theme:_theme)),
+        Positioned(right:18,top:12,child:GearIndicator(gear:_gear,theme:_theme,enabled:!_session.active)),
+        Positioned(right:150,top:14,child:_SpeedLimitBadge(speed:_speed,limit:widget.settings.toDisplaySpeed(widget.settings.speedLimit),theme:_theme)),
         if(!_session.active)Positioned(right:86,top:8,child:IconButton(onPressed:_settings,icon:Icon(Icons.tune,color:_theme.accent),tooltip:'Settings')),
         if(!_session.active)Positioned(left:0,right:0,bottom:10,child:Center(child:FilledButton.icon(onPressed:_startDrive,icon:const Icon(Icons.play_arrow),label:const Text('START DRIVE')))),
         if(_session.active)Positioned(right:18,top:10,child:FilledButton.icon(onPressed:_stopDrive,icon:const Icon(Icons.stop,size:16),label:const Text('STOP'))),
