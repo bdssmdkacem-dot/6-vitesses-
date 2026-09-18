@@ -62,7 +62,7 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ).listen(_onPosition);
     } catch (error) {
-      if (mounted) setState(() => _error = 'GPS: $error');
+      if (mounted) setState(() => _error = 'GPS unavailable: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -183,6 +183,12 @@ class _MapScreenState extends State<MapScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.sixvitesses',
               ),
+              TileLayer(
+                urlTemplate:
+                    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
+                userAgentPackageName: 'com.sixvitesses',
+              ),
               if (_route != null)
                 PolylineLayer(
                   polylines: [
@@ -214,6 +220,7 @@ class _MapScreenState extends State<MapScreen> {
               const RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution('OpenStreetMap contributors'),
+                  TextSourceAttribution('CARTO'),
                 ],
               ),
             ],
