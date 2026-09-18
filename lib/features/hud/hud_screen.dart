@@ -32,6 +32,7 @@ class HudScreen extends StatefulWidget {
 class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   final _session=DrivingSession(),_gpsService=GpsSpeedService(),_motionService=MotionSensorService();
   final _navigationEngine = const NavigationEngine();
+  final _routeService = OsrmRouteService();
   final _trafficService = OsmTrafficService();
   final _trafficEngine = TrafficSignEngine();
   Timer? _trafficTimer;
@@ -39,6 +40,9 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   LatLng? _lastPosition;
   double _lastHeading = 0;
   RelevantTrafficSign? _relevantTrafficSign;
+  DateTime? _offRouteSince;
+  bool _rerouteInProgress = false;
+  String? _navigationMessage;
   OsrmRoute? _navigationRoute;
   NavigationState? _navigationState;
   StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; Timer? _gpsWatchdog;
@@ -57,7 +61,16 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           _lastPosition = sample.position;
           _lastHeading = sample.headingDegrees;
           if (_navigationRoute != null && sample.position != null) {
-            _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!);
+            _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!, speedKmh: sample.speedKmh, headingDegrees: sample.headingDegrees);
+            if (_navigationState!.offRoute) {
+              _offRouteSince ??= sample.timestamp;
+              if (sample.timestamp.difference(_offRouteSince!) >= const Duration(seconds: 4)) {
+                unawaited(_rerouteFromCurrentPosition(sample.position!));
+              }
+            } else {
+              _offRouteSince = null;
+              _navigationMessage = null;
+            }
           }if(_speed>_maxSpeed)_maxSpeed=_speed;if(_longitudinalAccel>_maxAccel)_maxAccel=_longitudinalAccel;if(_longitudinalAccel<_maxBraking)_maxBraking=_longitudinalAccel;}_gpsStale=sample.isStale;});if(_session.active&&!sample.isStale)_session.addSample(speedKmh:sample.speedKmh,acceleration:sample.longitudinalAcceleration,timestamp:sample.timestamp);});
     _motionSub ??= _motionService.samples.listen((sample){if(!mounted)return;setState((){_longitudinalAccel=sample.longitudinalAcceleration;_totalAccel=sample.totalAcceleration;if(sample.longitudinalAcceleration>_maxAccel)_maxAccel=sample.longitudinalAcceleration;if(sample.longitudinalAcceleration<_maxBraking)_maxBraking=sample.longitudinalAcceleration;});});
     _motionService.start();await _gpsService.start();
@@ -73,7 +86,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     _lastTrafficFetch = now;
     try {
       final signs = await _trafficService.nearby(center: position);
-      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs);
+      final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, signs: signs, route: _navigationRoute?.geometry);
       if (!mounted) return;
       setState(() { _relevantTrafficSign = relevant.isEmpty ? null : relevant.first; });
     } catch (_) {
@@ -133,8 +146,35 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ),
     );
   }
-  void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;});}
-  Future<void> _stopDrive()async{final record=_session.stop();await widget.history.add(record);if(mounted)setState((){});}
+  void _startDrive(){_session.start();setState((){_maxSpeed=0;_maxAccel=0;_maxBraking=0;_offRouteSince=null;_navigationMessage=null;});}
+  Future<void> _rerouteFromCurrentPosition(LatLng position) async {
+    final destination = _navigationRoute?.destination;
+    if (destination == null || _rerouteInProgress || !_session.active) return;
+    _rerouteInProgress = true;
+    if (mounted) setState(() => _navigationMessage = 'RE-ROUTING…');
+    try {
+      final route = await _routeService.route(start: position, destination: destination);
+      if (!mounted || !_session.active) return;
+      setState(() {
+        _navigationRoute = route;
+        _navigationState = _navigationEngine.update(
+          route: route,
+          position: position,
+          speedKmh: _speed,
+          headingDegrees: _lastHeading,
+        );
+        _offRouteSince = null;
+        _navigationMessage = null;
+      });
+      _lastTrafficFetch = null;
+    } catch (_) {
+      if (mounted) setState(() => _navigationMessage = 'OFF ROUTE • NETWORK UNAVAILABLE');
+    } finally {
+      _rerouteInProgress = false;
+    }
+  }
+
+  Future<void> _stopDrive()async{final record=_session.stop();await widget.history.add(record);if(mounted)setState((){_offRouteSince=null;_navigationMessage=null;});}
   void _settings() {
     if (_session.active) return;
     showModalBottomSheet<void>(
@@ -272,7 +312,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       SafeArea(child:Stack(children:[
         Center(child:SpeedGauge(speed:widget.settings.toDisplaySpeed(_speed),maxSpeed:widget.settings.toDisplaySpeed(widget.settings.speedLimit),style:_style,theme:_theme,unitLabel:unitLabel,animate:widget.settings.animations)),
         if(showRpm)Positioned(top:navigationActive ? 8 : (compact?8:42),left:0,right:0,child:Center(child:RpmIndicator(rpm:_rpm,theme:_theme,style:_theme.rpmStyle,animate:widget.settings.animations))),
-        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,trafficSign:_relevantTrafficSign),
+        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,trafficSign:_relevantTrafficSign,message:_navigationMessage),
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
         Positioned(right:18,top:12,child:GearIndicator(gear:_gear,theme:_theme,enabled:!_session.active)),
         if(!compact)Positioned(left:18,bottom:14,child:Row(children:[
@@ -296,7 +336,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           if(!_session.active)Positioned(right:132,top:8,child:IconButton(onPressed:() async {
             await Navigator.of(context).push(MaterialPageRoute(builder:(_) => MapScreen(onRouteReady:(route) {
               if (!mounted) return;
-              setState(() { _navigationRoute = route; _navigationState = null; });
+              setState(() { _navigationRoute = route; _navigationState = null; _navigationMessage = null; _offRouteSince = null; });
             })));
           },icon:Icon(Icons.map,color:_theme.accent),tooltip:'Map')),
           if(!_session.active)Positioned(right:86,top:8,child:IconButton(onPressed:_settings,icon:Icon(Icons.tune,color:_theme.accent),tooltip:'Settings')),
@@ -306,7 +346,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ]),
     );
   }
-  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_routeService.dispose();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
 }
 class _Metric extends StatelessWidget {
   const _Metric(this.label,this.value); final String label,value;
