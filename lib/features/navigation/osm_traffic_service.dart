@@ -52,8 +52,10 @@ out center tags;
         tags['traffic_sign'],
         tags['maxspeed'],
         tags['oneway'],
+        tags['junction'],
       ].whereType<String>().join(' ');
-      final type = trafficSignTypeFromOsm(rawType);
+      var type = trafficSignTypeFromOsm(rawType);
+      if (type == TrafficSignType.unknown && tags['junction']?.toString() == 'roundabout') type = TrafficSignType.roundabout;
       if (type == TrafficSignType.unknown) continue;
 
       final location = _location(element);
