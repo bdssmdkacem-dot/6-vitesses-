@@ -23,6 +23,8 @@ class NavigationState {
     required this.offRoute,
     this.routeBearingDegrees = 0,
     this.nextManeuverDistanceMeters = 0,
+    this.routeProgressMeters = 0,
+    this.routeTotalMeters = 0,
   });
   final List<LatLng> route;
   final List<NavigationManeuver> maneuvers;
@@ -33,6 +35,8 @@ class NavigationState {
   final bool offRoute;
   final double routeBearingDegrees;
   final double nextManeuverDistanceMeters;
+  final double routeProgressMeters;
+  final double routeTotalMeters;
   NavigationManeuver? get nextManeuver => nextIndex >= 0 && nextIndex < maneuvers.length ? maneuvers[nextIndex] : null;
   bool get arrived => nextManeuver?.type == NavigationManeuverType.arrive;
 }
