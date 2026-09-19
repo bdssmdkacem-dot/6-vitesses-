@@ -7,6 +7,9 @@ class DriveRecord {
     required this.maxSpeedKmh,
     required this.maxAcceleration,
     required this.maxBraking,
+    this.zeroToSixtySeconds,
+    this.zeroToHundredSeconds,
+    this.maxLateralG = 0,
   });
 
   final DateTime startedAt;
@@ -16,6 +19,9 @@ class DriveRecord {
   final double maxSpeedKmh;
   final double maxAcceleration;
   final double maxBraking;
+  final double? zeroToSixtySeconds;
+  final double? zeroToHundredSeconds;
+  final double maxLateralG;
 
   Map<String, Object> toJson() => {
     'startedAt': startedAt.toIso8601String(),
@@ -25,6 +31,9 @@ class DriveRecord {
     'maxSpeedKmh': maxSpeedKmh,
     'maxAcceleration': maxAcceleration,
     'maxBraking': maxBraking,
+    'zeroToSixtySeconds': zeroToSixtySeconds,
+    'zeroToHundredSeconds': zeroToHundredSeconds,
+    'maxLateralG': maxLateralG,
   };
 
   factory DriveRecord.fromJson(Map<String, dynamic> json) => DriveRecord(
@@ -35,5 +44,8 @@ class DriveRecord {
     maxSpeedKmh: (json['maxSpeedKmh'] as num).toDouble(),
     maxAcceleration: (json['maxAcceleration'] as num).toDouble(),
     maxBraking: (json['maxBraking'] as num).toDouble(),
+    zeroToSixtySeconds: (json['zeroToSixtySeconds'] as num?)?.toDouble(),
+    zeroToHundredSeconds: (json['zeroToHundredSeconds'] as num?)?.toDouble(),
+    maxLateralG: (json['maxLateralG'] as num?)?.toDouble() ?? 0,
   );
 }
