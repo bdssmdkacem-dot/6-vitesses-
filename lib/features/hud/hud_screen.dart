@@ -106,6 +106,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         _session.addSample(
           speedKmh: fusion.speedKmh,
           acceleration: fusion.longitudinalAcceleration,
+          lateralAcceleration: fusion.lateralAcceleration,
           timestamp: sample.timestamp,
         );
       }
