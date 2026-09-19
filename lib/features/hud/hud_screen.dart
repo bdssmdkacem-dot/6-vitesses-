@@ -53,7 +53,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   NavigationState? _navigationState;
   StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; Timer? _gpsWatchdog;
   double _speed=0,_longitudinalAccel=0,_totalAccel=0,_maxSpeed=0,_maxAccel=0,_maxBraking=0; double? _rpm;
-  SensorFusionSample _fusion = const SensorFusionSample(speedKmh:0,longitudinalAcceleration:0,lateralAcceleration:0,totalAcceleration:0,speedConfidence:0,accelerationConfidence:0,overallConfidence:0,source:SensorSource.unavailable,timestamp:DateTime.fromMillisecondsSinceEpoch(0));
+  SensorFusionSample _fusion = SensorFusionSample(speedKmh:0,longitudinalAcceleration:0,lateralAcceleration:0,totalAcceleration:0,speedConfidence:0,accelerationConfidence:0,overallConfidence:0,source:SensorSource.unavailable,timestamp:DateTime.fromMillisecondsSinceEpoch(0));
   bool _mirror=false,_ready=false,_gpsStale=true; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
