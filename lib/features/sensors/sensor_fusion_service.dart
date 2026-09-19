@@ -53,10 +53,8 @@ class SensorFusionService {
   SensorFusionSample updateGps(GpsSample sample) {
     if (!sample.isStale) {
       _gps = sample;
-      if (!obdIsFresh(sample.timestamp)) {
-        _fusedSpeed = sample.speedKmh;
-        _fusedSpeedAt = sample.timestamp;
-      }
+      _fusedSpeed = sample.speedKmh;
+      _fusedSpeedAt = sample.timestamp;
     }
     return _compose(sample.timestamp);
   }
@@ -71,13 +69,9 @@ class SensorFusionService {
     return _compose(timestamp ?? sample.timestamp ?? DateTime.now());
   }
 
-  bool obdIsFresh(DateTime now) {
-    // OBD-II is intentionally disabled in the active fusion path.
-    // GPS + IMU are the only authoritative runtime sources for now.
-    // Keep the hook for the future OBD phase without allowing OBD
-    // telemetry to influence speed, acceleration, confidence, or source.
-    return false;
-  }
+  // OBD-II is intentionally disabled in the active fusion path.
+  // GPS + IMU are the only authoritative runtime sources for now.
+  bool obdIsFresh(DateTime now) => false;
 
   SensorFusionSample current([DateTime? now]) =>
       _compose(now ?? DateTime.now());
@@ -88,7 +82,6 @@ class SensorFusionService {
 
     final gps = _gps;
     final motion = _motion;
-    final obd = _obd;
 
     final gpsAge = gps == null
         ? const Duration(days: 1)
@@ -100,7 +93,6 @@ class SensorFusionService {
     final gpsFresh =
         gps != null && !gps.isStale && gpsAge <= gpsFreshness;
     final imuFresh = motion != null && imuAge <= imuFreshness;
-    const obdFresh = false;
 
     var speed = _fusedSpeed;
     var source = SensorSource.unavailable;
