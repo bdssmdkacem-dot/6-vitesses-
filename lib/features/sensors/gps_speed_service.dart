@@ -28,7 +28,7 @@ class GpsSample {
 class GpsSpeedService {
   GpsSpeedService({
     this.windowSize = 5,
-    this.maxAccuracyMeters = 100,
+    this.maxAccuracyMeters = 250,
     this.staleAfter = const Duration(seconds: 4),
     this.maxJumpSpeedKmh = 320,
   });
