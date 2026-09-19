@@ -82,10 +82,10 @@ class SensorFusionService {
     if (gpsFresh) {
       speed = gpsSample.speedKmh;
       _fusedSpeed = speed;
-      _fusedSpeedAt = gps.timestamp;
+      _fusedSpeedAt = gpsSample.timestamp;
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
       speedConfidence = gpsSample.speedConfidence;
-    } else if (motion != null && _fusedSpeedAt != null) {
+    } else if (motionSample != null && _fusedSpeedAt != null) {
       final sinceGps = now.difference(_fusedSpeedAt!);
       if (sinceGps <= imuSpeedHold) {
         final dt = previousComposeAt == null ? 0.0 : now.difference(previousComposeAt).inMilliseconds / 1000.0;
@@ -114,7 +114,7 @@ class SensorFusionService {
 
     final accelerationConfidence = imuFresh
         ? motionSample.noiseConfidence
-        : (gpsFresh ? gps.speedConfidence * .75 : 0.0);
+        : (gpsFresh ? gpsSample.speedConfidence * .75 : 0.0);
     final overall = math.sqrt(speedConfidence * accelerationConfidence)
         .clamp(0.0, 1.0)
         .toDouble();
