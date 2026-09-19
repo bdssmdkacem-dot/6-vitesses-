@@ -110,7 +110,7 @@ class SensorFusionService {
     // OBD is optional. When fresh, its vehicle speed is preferred because it
     // comes directly from the vehicle ECU. GPS remains the fallback.
     if (obdFresh) {
-      speed = obd!.vehicleSpeedKmh!.clamp(0.0, 400.0).toDouble();
+      speed = obd.vehicleSpeedKmh.clamp(0.0, 400.0).toDouble();
       _fusedSpeed = speed;
       _fusedSpeedAt = obd.timestamp;
       speedConfidence = 0.98;
