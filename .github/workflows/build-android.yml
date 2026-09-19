@@ -135,7 +135,10 @@ jobs:
           RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep "SHA256:"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          test -x "$APKSIGNER"
+          echo "APK certificate:"
+          "$APKSIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
           echo "Expected certificate:"
           keytool -list -v \
             -keystore android/app/6-vitesses-release.jks \
