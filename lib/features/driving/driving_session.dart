@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'drive_record.dart';
 import 'performance_metrics.dart';
-import 'performance_metrics.dart';
 
 class DrivingSession extends ChangeNotifier {
   bool _active = false;
@@ -17,7 +16,6 @@ class DrivingSession extends ChangeNotifier {
   int _samples = 0;
   Timer? _timer;
   final PerformanceMetrics _performance = PerformanceMetrics();
-  final PerformanceMetrics _performance = PerformanceMetrics();
 
   bool get active => _active;
   Duration get elapsed => _elapsed;
@@ -26,7 +24,6 @@ class DrivingSession extends ChangeNotifier {
   double get maxSpeed => _maxSpeed;
   double get maxAcceleration => _maxAcceleration;
   double get maxBraking => _maxBraking;
-  PerformanceSnapshot get performance => _performance.snapshot(DateTime.now());
   PerformanceSnapshot get performance => _performance.snapshot(DateTime.now());
 
   void start() {
@@ -70,12 +67,6 @@ class DrivingSession extends ChangeNotifier {
     _samples++;
     _speedSum += speedKmh;
     _performance.addSample(speedKmh: speedKmh, longitudinalAcceleration: acceleration, lateralAcceleration: lateralAcceleration, timestamp: now);
-    _performance.addSample(
-      speedKmh: speedKmh,
-      longitudinalAcceleration: acceleration,
-      lateralAcceleration: 0,
-      timestamp: now,
-    );
     if (speedKmh > _maxSpeed) _maxSpeed = speedKmh;
     if (acceleration > _maxAcceleration) _maxAcceleration = acceleration;
     if (acceleration < _maxBraking) _maxBraking = acceleration;
