@@ -149,7 +149,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheet) {
           final themes = HudTheme.all.map<Widget>((theme) => ChoiceChip(label: Text(theme.name), selected: _theme == theme,onSelected: (_) async {await widget.settings.setTheme(theme);await widget.settings.setGauge(theme.defaultGauge);if (!mounted) return;setState(() {_theme=theme;_style=theme.defaultGauge;});setSheet(() {});},)).toList();
-          final gauges = HudGaugeStyle.values.map<Widget>((style) => ChoiceChip(label: Text(style.name.toUpperCase()), selected: _style == style,onSelected: (_) async {await widget.settings.setGauge(style);if (!mounted) return;setState(() => _style=style);setSheet(() {});},)).toList();
+          final gauges = HudGaugeStyle.values.map<Widget>((style) => ChoiceChip(label: Text(_gaugeLabel(style)), selected: _style == style,onSelected: (_) async {await widget.settings.setGauge(style);if (!mounted) return;setState(() => _style=style);setSheet(() {});},)).toList();
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20,20,20,28),
             child: Column(mainAxisSize: MainAxisSize.min,children:[
@@ -232,3 +232,4 @@ class _Metric extends StatelessWidget {
   const _Metric(this.label,this.value);final String label,value;
   @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:const TextStyle(fontSize:10)),Text(value,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w700))]);
 }
+String _gaugeLabel(HudGaugeStyle style) => switch(style) { HudGaugeStyle.digital => 'DIGITAL CLASSIC', HudGaugeStyle.digitalGt => 'DIGITAL GT', HudGaugeStyle.circular => 'CIRCULAR', HudGaugeStyle.linear => 'LINEAR' };
