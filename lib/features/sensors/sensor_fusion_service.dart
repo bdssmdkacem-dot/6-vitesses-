@@ -125,22 +125,23 @@ class SensorFusionService {
       final fusedSpeedAt = _fusedSpeedAt;
       if (motion != null && fusedSpeedAt != null) {
         final sinceSpeed = now.difference(fusedSpeedAt);
-      if (sinceSpeed <= imuSpeedHold) {
-        final dt = previousComposeAt == null
-            ? 0.0
-            : now.difference(previousComposeAt).inMilliseconds / 1000.0;
-        speed = (_fusedSpeed +
-                motion.longitudinalAcceleration * dt * 3.6)
-            .clamp(0.0, 400.0)
-            .toDouble();
-        _fusedSpeed = speed;
-        source = SensorSource.imu;
-        speedConfidence = (motion.noiseConfidence *
-                (1.0 -
-                    sinceSpeed.inMilliseconds /
-                        imuSpeedHold.inMilliseconds))
-            .clamp(0.0, 1.0)
-            .toDouble();
+        if (sinceSpeed <= imuSpeedHold) {
+          final dt = previousComposeAt == null
+              ? 0.0
+              : now.difference(previousComposeAt).inMilliseconds / 1000.0;
+          speed = (_fusedSpeed +
+                  motion.longitudinalAcceleration * dt * 3.6)
+              .clamp(0.0, 400.0)
+              .toDouble();
+          _fusedSpeed = speed;
+          source = SensorSource.imu;
+          speedConfidence = (motion.noiseConfidence *
+                  (1.0 -
+                      sinceSpeed.inMilliseconds /
+                          imuSpeedHold.inMilliseconds))
+              .clamp(0.0, 1.0)
+              .toDouble();
+        }
       }
     }
 
