@@ -157,17 +157,17 @@ These assets will be connected to the native Android launcher and Android Splash
 
 ### Phase C — Navigation production hardening
 
-- [ ] Automatic rerouting UX and retry messaging.
-- [ ] Arrival detection and destination completion.
-- [ ] Route refresh without losing HUD state.
-- [ ] Better route/network fallback.
-- [ ] Improve road-direction association from OSM geometry.
-- [ ] Improve speed-limit association with route segments.
-- [ ] Improve STOP / Give Way / traffic-light association.
-- [ ] Improve roundabout exit context.
-- [ ] Add parallel-road and crossing-road coverage tests.
-- [ ] Add service caching and retry policy.
-- [ ] Keep HUD usable when map services are unavailable.
+- [x] Automatic rerouting UX and retry messaging.
+- [x] Arrival detection and destination completion.
+- [x] Route refresh without losing HUD state.
+- [x] Better route/network fallback.
+- [x] Improve road-direction association from OSM geometry.
+- [x] Improve speed-limit association with route segments.
+- [x] Improve STOP / Give Way / traffic-light association.
+- [x] Improve roundabout exit context.
+- [x] Add parallel-road and crossing-road coverage tests.
+- [x] Add service caching and retry policy.
+- [x] Keep HUD usable when map services are unavailable.
 
 ### Phase D — Sensor fusion and performance
 
