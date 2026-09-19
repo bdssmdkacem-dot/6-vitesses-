@@ -21,7 +21,7 @@ class NavigationHudOverlay extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: FractionallySizedBox(
-          widthFactor: style == HudGaugeStyle.digital || style == HudGaugeStyle.digitalGt ? .38 : .34,
+          widthFactor: style == HudGaugeStyle.digital || style == HudGaugeStyle.digitalGt ? (compact ? .28 : .30) : .30,
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.only(right: 10, left: 8),
@@ -31,7 +31,7 @@ class NavigationHudOverlay extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 8 : 10),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: .58), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: .65))),
           child: Row(mainAxisSize: MainAxisSize.max, children: [
-            _ManeuverIcon(type: maneuver.type, color: accent),
+            _ManeuverIcon(type: maneuver.type, color: accent, compact: compact),
             const SizedBox(width: 12),
             Flexible(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (message != null) Text(message!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.w900)),
@@ -84,9 +84,10 @@ class NavigationHudOverlay extends StatelessWidget {
 }
 
 class _ManeuverIcon extends StatelessWidget {
-  const _ManeuverIcon({required this.type, required this.color});
+  const _ManeuverIcon({required this.type, required this.color, required this.compact});
   final NavigationManeuverType type;
   final Color color;
+  final bool compact;
   @override Widget build(BuildContext context) {
     IconData icon;
     switch (type) {
