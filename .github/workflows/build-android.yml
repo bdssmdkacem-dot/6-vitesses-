@@ -141,18 +141,26 @@ jobs:
           "$AAPT" dump xmltree "$APK" AndroidManifest.xml | tee /tmp/apk-manifest-tree.txt
 
           echo "=== AndroidManifest files produced by the release build ==="
-          find android/app/build -type f -name AndroidManifest.xml -print | sort
-          MERGED="$(find android/app/build -type f -name AndroidManifest.xml -print | grep -E '/(merged_manifests|merged_manifest|packaged_manifests)/' | grep -E '/release/' | head -1 || true)"
+          if [ -d android/app/build ]; then
+            find android/app/build -type f -name AndroidManifest.xml -print 2>/dev/null | sort || true
+          else
+            echo "android/app/build directory is not present; continuing with final APK as authoritative."
+          fi
+
+          MERGED=""
+          if [ -d android/app/build ]; then
+            MERGED="$(find android/app/build -type f -name AndroidManifest.xml -print 2>/dev/null | grep -E '/(merged_manifests|merged_manifest|packaged_manifests)/' | grep -E '/release/' | head -1 || true)"
+          fi
+
           if [ -n "$MERGED" ]; then
             echo "Using merged release manifest: $MERGED"
             cat "$MERGED"
-            echo "=== Required merged manifest permissions ==="
             grep -q 'android.permission.ACCESS_FINE_LOCATION' "$MERGED"
             grep -q 'android.permission.ACCESS_COARSE_LOCATION' "$MERGED"
             grep -q 'android.permission.INTERNET' "$MERGED"
             grep -q 'android.permission.ACCESS_NETWORK_STATE' "$MERGED"
           else
-            echo "No standalone merged-manifest file matched the AGP output layout; final APK manifest will be the authoritative check."
+            echo "No standalone merged-manifest file matched the AGP output layout; final APK manifest is authoritative."
           fi
 
           echo "=== APK identity and location permissions ==="
@@ -161,7 +169,7 @@ jobs:
           grep -q 'android.permission.ACCESS_COARSE_LOCATION' /tmp/apk-permissions-deep.txt
 
           echo "=== Target SDK ==="
-          TARGET_SDK="$(sed -n 's/.*targetSdkVersion:\\([0-9][0-9]*\\).*/\\1/p' /tmp/apk-badging-deep.txt | head -1)"
+          TARGET_SDK="$(grep -oE 'targetSdkVersion:[^ ]+' /tmp/apk-badging-deep.txt | head -1 | tr -cd '0-9')"
           test -n "$TARGET_SDK"
           echo "Final APK targetSdkVersion=$TARGET_SDK"
 
