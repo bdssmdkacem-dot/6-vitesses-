@@ -97,8 +97,6 @@ class SensorFusionService {
     var source = SensorSource.unavailable;
     var speedConfidence = 0.0;
 
-    // Active speed source: GPS first. IMU may only propagate a recent
-    // GPS speed for a short hold window; it never depends on OBD.
     if (gpsFresh) {
       speed = gps.speedKmh;
       _fusedSpeed = speed;
@@ -135,20 +133,24 @@ class SensorFusionService {
       }
     }
 
-    final gpsAccel = gpsFresh ? gps.longitudinalAcceleration : null;
-    final imuAccel = imuFresh ? motion.longitudinalAcceleration : null;
+    double acceleration;
+    if (gpsFresh && imuFresh) {
+      final wg = gps!.speedConfidence.clamp(.15, 1.0);
+      final wi = motion!.noiseConfidence.clamp(.15, 1.0);
+      acceleration =
+          (gps.longitudinalAcceleration * wg +
+                  motion.longitudinalAcceleration * wi) /
+              (wg + wi);
+    } else if (imuFresh) {
+      acceleration = motion!.longitudinalAcceleration;
+    } else if (gpsFresh) {
+      acceleration = gps!.longitudinalAcceleration;
+    } else {
+      acceleration = 0;
+    }
 
     final gpsConfidence = gps?.speedConfidence ?? 0.0;
     final imuConfidence = motion?.noiseConfidence ?? 0.0;
-
-    double acceleration;
-    if (gpsAccel != null && imuAccel != null) {
-      final wg = gpsConfidence.clamp(.15, 1.0);
-      final wi = imuConfidence.clamp(.15, 1.0);
-      acceleration = (gpsAccel * wg + imuAccel * wi) / (wg + wi);
-    } else {
-      acceleration = imuAccel ?? gpsAccel ?? 0;
-    }
 
     final accelerationConfidence = imuFresh
         ? imuConfidence
@@ -172,8 +174,8 @@ class SensorFusionService {
       speedKmh: speed,
       longitudinalAcceleration:
           acceleration.clamp(-15.0, 15.0).toDouble(),
-      lateralAcceleration: imuFresh ? motion.lateralAcceleration : 0,
-      totalAcceleration: imuFresh ? motion.totalAcceleration : 0,
+      lateralAcceleration: imuFresh ? motion!.lateralAcceleration : 0,
+      totalAcceleration: imuFresh ? motion!.totalAcceleration : 0,
       speedConfidence: speedConfidence,
       accelerationConfidence: accelerationConfidence,
       overallConfidence: overall,
