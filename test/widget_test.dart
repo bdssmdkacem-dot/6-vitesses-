@@ -13,10 +13,7 @@ void main() {
     await tester.pumpWidget(
       SixVitessesApp(settings: settings, history: history),
     );
-
-    // HudScreen waits for the native Android permission request to settle
-    // before checking the resulting permission state.
-    await tester.pump(const Duration(milliseconds: 1600));
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byType(SixVitessesApp), findsOneWidget);
   });
