@@ -66,8 +66,9 @@ class PerformanceMetrics {
     if (_start == null) reset(timestamp);
 
     final speed = speedKmh.clamp(0.0, 400.0).toDouble();
-    if (_lastAt != null) {
-      final dt = timestamp.difference(_lastAt!).inMilliseconds / 1000.0;
+    final previousAt = _lastAt;
+    if (previousAt != null) {
+      final dt = timestamp.difference(previousAt).inMilliseconds / 1000.0;
       if (dt > 0 && dt <= 2) {
         _distanceKm += speed * dt / 3600.0;
       }
@@ -96,7 +97,7 @@ class PerformanceMetrics {
           threshold: 60,
           previousSpeed: previous,
           currentSpeed: speed,
-          previousAt: _lastAt == null ? timestamp : timestamp,
+          previousAt: previousAt ?? timestamp,
           currentAt: timestamp,
           launchAt: _launchStart!,
         );
@@ -107,7 +108,7 @@ class PerformanceMetrics {
           threshold: 100,
           previousSpeed: previous,
           currentSpeed: speed,
-          previousAt: _lastAt == null ? timestamp : timestamp,
+          previousAt: previousAt ?? timestamp,
           currentAt: timestamp,
           launchAt: _launchStart!,
         );
