@@ -182,14 +182,18 @@ These assets will be connected to the native Android launcher and Android Splash
 
 ### Phase E — Driving performance features
 
-- [ ] 0–60 measurement.
-- [ ] 0–100 measurement.
-- [ ] Maximum speed.
-- [ ] Maximum acceleration.
-- [ ] Maximum braking.
-- [ ] Lateral G.
-- [ ] Enriched trip statistics.
-- [ ] Optional live OBD-II telemetry.
+- [x] 0–60 measurement with fresh-run detection.
+- [x] 0–100 measurement with fresh-run detection.
+- [x] Maximum speed.
+- [x] Maximum acceleration.
+- [x] Maximum braking.
+- [x] Lateral G.
+- [x] Enriched trip statistics persisted in local history.
+- [x] OBD-II telemetry abstraction with ELM327 PID decoding.
+- [x] Bluetooth Classic RFCOMM transport for ELM327 adapters.
+- [x] Live OBD telemetry polling with disconnect-safe fallback.
+- [ ] Physical OBD-II adapter validation on representative Android hardware/vehicles.
+- [ ] Physical acceleration-test validation against a reference instrument.
 
 ### Phase F — Final QA and release
 
