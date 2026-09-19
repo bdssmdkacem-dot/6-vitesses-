@@ -200,7 +200,29 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     final hudLayer=Stack(fit:StackFit.expand,children:[
       HudBackground(theme:_theme,animate:widget.settings.animations),
       SafeArea(child:Stack(children:[
-        Align(alignment:Alignment.center,child:Padding(padding:EdgeInsets.only(left:navigationActive?0:0,right:navigationActive?0:0),child:SpeedGauge(speed:widget.settings.toDisplaySpeed(_speed),maxSpeed:widget.settings.toDisplaySpeed(widget.settings.speedLimit),style:_style,theme:_theme,unitLabel:unitLabel,animate:widget.settings.animations))),
+        Align(
+          alignment: Alignment.center,
+          child: gtEnabled && navigationActive
+              ? SizedBox(
+                  width: 400,
+                  child: SpeedGauge(
+                    speed: widget.settings.toDisplaySpeed(_speed),
+                    maxSpeed: widget.settings.toDisplaySpeed(widget.settings.speedLimit),
+                    style: _style,
+                    theme: _theme,
+                    unitLabel: unitLabel,
+                    animate: widget.settings.animations,
+                  ),
+                )
+              : SpeedGauge(
+                  speed: widget.settings.toDisplaySpeed(_speed),
+                  maxSpeed: widget.settings.toDisplaySpeed(widget.settings.speedLimit),
+                  style: _style,
+                  theme: _theme,
+                  unitLabel: unitLabel,
+                  animate: widget.settings.animations,
+                ),
+        ),
         if(showRpm)Positioned(top:navigationActive?8:(compact?8:42),left:0,right:0,child:Center(child:RpmIndicator(rpm:_rpm,theme:_theme,style:_theme.rpmStyle,animate:widget.settings.animations))),
         if(_relevantTrafficSigns.isNotEmpty)Positioned(left:14,top:0,bottom:0,child:Center(child:_TrafficSignRail(signs:gtEnabled&&!gtSpec.showFullSignRail?_relevantTrafficSigns.take(1).toList(growable:false):_relevantTrafficSigns,theme:_theme))),
         if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,message:_navigationMessage,style:_style,compact:gtEnabled&&gtSpec.compactNavigation,showEta:!gtEnabled||gtSpec.showEta,showRoadName:!gtEnabled||gtSpec.showRoadName),
@@ -210,10 +232,10 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if (gtEnabled && gtSpec.showMap && navigationActive)
           Positioned(
-            left: widget.settings.gtLayout == GtLayout.nav ? 96 : null,
-            right: widget.settings.gtLayout == GtLayout.touring ? 118 : null,
-            top: widget.settings.gtLayout == GtLayout.nav ? 48 : null,
-            bottom: widget.settings.gtLayout == GtLayout.touring ? 62 : null,
+            left: widget.settings.gtLayout == GtLayout.nav ? 100 : null,
+            right: widget.settings.gtLayout == GtLayout.touring ? 12 : null,
+            top: widget.settings.gtLayout == GtLayout.nav ? 50 : null,
+            bottom: widget.settings.gtLayout == GtLayout.touring ? 70 : null,
             child: GtRouteMap(
               route: _navigationState!.route,
               position: _lastPosition,
