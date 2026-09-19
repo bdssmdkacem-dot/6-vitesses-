@@ -26,7 +26,8 @@ class PerformanceSnapshot {
 
 class PerformanceMetrics {
   DateTime? _start;
-  DateTime? _zeroStart;
+  DateTime? _launchStart;
+  DateTime? _lastAt;
   double _previousSpeed = 0;
   double _maxSpeed = 0;
   double _maxAcceleration = 0;
@@ -37,11 +38,12 @@ class PerformanceMetrics {
   int _samples = 0;
   double? _zeroToSixty;
   double? _zeroToHundred;
-  DateTime? _lastAt;
+  bool _launchArmed = false;
 
   void reset(DateTime startedAt) {
     _start = startedAt;
-    _zeroStart = null;
+    _launchStart = null;
+    _lastAt = null;
     _previousSpeed = 0;
     _maxSpeed = 0;
     _maxAcceleration = 0;
@@ -52,7 +54,7 @@ class PerformanceMetrics {
     _samples = 0;
     _zeroToSixty = null;
     _zeroToHundred = null;
-    _lastAt = null;
+    _launchArmed = false;
   }
 
   void addSample({
@@ -62,46 +64,101 @@ class PerformanceMetrics {
     required DateTime timestamp,
   }) {
     if (_start == null) reset(timestamp);
+
+    final speed = speedKmh.clamp(0.0, 400.0).toDouble();
     if (_lastAt != null) {
       final dt = timestamp.difference(_lastAt!).inMilliseconds / 1000.0;
-      if (dt > 0 && dt <= 2) _distanceKm += speedKmh * dt / 3600.0;
+      if (dt > 0 && dt <= 2) {
+        _distanceKm += speed * dt / 3600.0;
+      }
     }
+
     _lastAt = timestamp;
     _samples++;
-    _speedSum += speedKmh;
-    _maxSpeed = math.max(_maxSpeed, speedKmh);
+    _speedSum += speed;
+    _maxSpeed = math.max(_maxSpeed, speed);
     _maxAcceleration = math.max(_maxAcceleration, longitudinalAcceleration);
     _maxBraking = math.min(_maxBraking, longitudinalAcceleration);
-    _maxLateralG = math.max(_maxLateralG, lateralAcceleration.abs() / 9.80665);
+    _maxLateralG = math.max(
+      _maxLateralG,
+      lateralAcceleration.abs() / 9.80665,
+    );
 
-    if (speedKmh <= 2 && _zeroStart == null) {
-      _zeroStart = timestamp;
+    // A launch attempt is armed at rest. Completed 0-60/0-100 values are
+    // intentionally preserved; reaching 0 km/h later must not erase history.
+    if (speed <= 2) {
+      _launchStart = timestamp;
+      _launchArmed = true;
+    } else if (_launchArmed && _launchStart != null) {
+      final previous = _previousSpeed;
+      if (previous < 60 && speed >= 60) {
+        final elapsed = _crossingElapsed(
+          threshold: 60,
+          previousSpeed: previous,
+          currentSpeed: speed,
+          previousAt: _lastAt == null ? timestamp : timestamp,
+          currentAt: timestamp,
+          launchAt: _launchStart!,
+        );
+        _zeroToSixty = _minValid(_zeroToSixty, elapsed);
+      }
+      if (previous < 100 && speed >= 100) {
+        final elapsed = _crossingElapsed(
+          threshold: 100,
+          previousSpeed: previous,
+          currentSpeed: speed,
+          previousAt: _lastAt == null ? timestamp : timestamp,
+          currentAt: timestamp,
+          launchAt: _launchStart!,
+        );
+        _zeroToHundred = _minValid(_zeroToHundred, elapsed);
+      }
+      if (_zeroToHundred != null && _zeroToSixty != null) {
+        // Keep the attempt armed for possible better runs after another stop.
+      }
     }
-    if (_zeroStart != null && _previousSpeed < 60 && speedKmh >= 60) {
-      final elapsed = timestamp.difference(_zeroStart!).inMilliseconds / 1000.0;
-      if (_zeroToSixty == null && elapsed >= 0.2 && elapsed <= 120) _zeroToSixty = elapsed;
+
+    _previousSpeed = speed;
+  }
+
+  double _crossingElapsed({
+    required double threshold,
+    required double previousSpeed,
+    required double currentSpeed,
+    required DateTime previousAt,
+    required DateTime currentAt,
+    required DateTime launchAt,
+  }) {
+    final totalSeconds =
+        currentAt.difference(launchAt).inMilliseconds / 1000.0;
+    if (totalSeconds < 0 || totalSeconds > 120) return double.infinity;
+
+    final delta = currentSpeed - previousSpeed;
+    if (delta <= 0) return totalSeconds;
+
+    final fraction = ((threshold - previousSpeed) / delta).clamp(0.0, 1.0);
+    final sampleSeconds =
+        currentAt.difference(previousAt).inMilliseconds / 1000.0;
+    return math.max(0, totalSeconds - sampleSeconds * (1 - fraction));
+  }
+
+  double? _minValid(double? current, double candidate) {
+    if (!candidate.isFinite || candidate < 0.2 || candidate > 120) {
+      return current;
     }
-    if (_zeroStart != null && _previousSpeed < 100 && speedKmh >= 100) {
-      final elapsed = timestamp.difference(_zeroStart!).inMilliseconds / 1000.0;
-      if (_zeroToHundred == null && elapsed >= 0.2 && elapsed <= 120) _zeroToHundred = elapsed;
-    }
-    if (speedKmh < 2) {
-      _zeroStart = timestamp;
-      _zeroToSixty = null;
-      _zeroToHundred = null;
-    }
-    _previousSpeed = speedKmh;
+    return current == null ? candidate : math.min(current, candidate);
   }
 
   PerformanceSnapshot snapshot(DateTime now) => PerformanceSnapshot(
-    zeroToSixtySeconds: _zeroToSixty,
-    zeroToHundredSeconds: _zeroToHundred,
-    maxSpeedKmh: _maxSpeed,
-    maxAcceleration: _maxAcceleration,
-    maxBraking: _maxBraking,
-    maxLateralG: _maxLateralG,
-    distanceKm: _distanceKm,
-    averageSpeedKmh: _samples == 0 ? 0 : _speedSum / _samples,
-    durationSeconds: _start == null ? 0 : now.difference(_start!).inSeconds,
-  );
+        zeroToSixtySeconds: _zeroToSixty,
+        zeroToHundredSeconds: _zeroToHundred,
+        maxSpeedKmh: _maxSpeed,
+        maxAcceleration: _maxAcceleration,
+        maxBraking: _maxBraking,
+        maxLateralG: _maxLateralG,
+        distanceKm: _distanceKm,
+        averageSpeedKmh: _samples == 0 ? 0 : _speedSum / _samples,
+        durationSeconds:
+            _start == null ? 0 : now.difference(_start!).inSeconds,
+      );
 }
