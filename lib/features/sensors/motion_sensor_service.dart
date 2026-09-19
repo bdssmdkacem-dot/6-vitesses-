@@ -40,6 +40,8 @@ class MotionSensorService {
   double _axisScoreX = 0;
   double _axisScoreY = 0;
   double _speedDerivativeFilter = 0;
+  double _noiseEma = 0;
+  double get noiseConfidence => (1.0 - (_noiseEma / 2.5)).clamp(0.0, 1.0).toDouble();
 
   void start() {
     if (_subscription != null) return;
@@ -55,6 +57,10 @@ class MotionSensorService {
       final y = _filteredY;
       final z = _filteredZ;
       final total = math.sqrt(x * x + y * y + z * z);
+      final residual = math.sqrt(
+        math.pow(event.x - x, 2) + math.pow(event.y - y, 2) + math.pow(event.z - z, 2),
+      );
+      _noiseEma = _noiseEma * 0.92 + residual * 0.08;
 
       if (!_calibrated && _speedDerivativeFilter.abs() > 0.35) {
         _axisScoreX = _axisScoreX * 0.98 + x.abs() * _speedDerivativeFilter.abs();
