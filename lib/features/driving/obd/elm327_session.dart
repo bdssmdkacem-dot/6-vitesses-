@@ -19,9 +19,8 @@ class Elm327Session implements ObdAdapter {
 
   @override
   Future<void> connectToAddress(String address) async {
-    if (transport is dynamic) {
-      throw StateError('The transport must implement address-based connection.');
-    }
+    await transport.connectToAddress(address);
+    _connected = true;
   }
 
   @override
