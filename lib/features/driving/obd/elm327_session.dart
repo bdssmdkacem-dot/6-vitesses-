@@ -31,13 +31,33 @@ class Elm327Session implements ObdAdapter {
   Future<double?> readPid(String pid) async {
     if (!_connected) return null;
     final response = await transport.send(pid);
-    return _parseFirstValue(response);
+    return _parsePidValue(pid, response);
   }
 
-  double? _parseFirstValue(String response) {
-    final match = RegExp(r'([0-9A-Fa-f]{2})').firstMatch(response);
-    if (match == null) return null;
-    return int.parse(match.group(1)!, radix: 16).toDouble();
+  double? _parsePidValue(String pid, String response) {
+    final bytes = RegExp(r'[0-9A-Fa-f]{2}')
+        .allMatches(response)
+        .map((m) => int.parse(m.group(0)!, radix: 16))
+        .toList();
+    if (bytes.length < 3) return null;
+    final requested = int.tryParse(pid.replaceFirst('01', ''), radix: 16);
+    if (requested == null) return null;
+    final index = bytes.indexWhere((value) => value == 0x41);
+    if (index < 0 || index + 1 >= bytes.length || bytes[index + 1] != requested) return null;
+    final data = bytes.sublist(index + 2);
+    if (data.isEmpty) return null;
+    switch (requested) {
+      case 0x04:
+      case 0x05:
+      case 0x0D:
+      case 0x11:
+        return data.first.toDouble();
+      case 0x0C:
+        if (data.length < 2) return null;
+        return ((data[0] * 256) + data[1]).toDouble();
+      default:
+        return null;
+    }
   }
 
   Future<ObdTelemetry> readStandardTelemetry() async {
