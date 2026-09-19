@@ -118,7 +118,7 @@ class SensorFusionService {
       speedConfidence = 0.98;
       source = gpsFresh || imuFresh ? SensorSource.fused : SensorSource.obd;
     } else if (gpsFresh) {
-      speed = gps!.speedKmh;
+      speed = gps.speedKmh;
       _fusedSpeed = speed;
       _fusedSpeedAt = gps.timestamp;
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
