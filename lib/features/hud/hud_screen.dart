@@ -24,6 +24,7 @@ import 'widgets/gear_indicator.dart';
 import 'widgets/hud_background.dart';
 import 'widgets/rpm_indicator.dart';
 import 'widgets/speed_gauge.dart';
+import 'widgets/gt_layout_engine.dart';
 
 class HudScreen extends StatefulWidget {
   const HudScreen({super.key,required this.settings,required this.history});
@@ -150,12 +151,14 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         builder: (context, setSheet) {
           final themes = HudTheme.all.map<Widget>((theme) => ChoiceChip(label: Text(theme.name), selected: _theme == theme,onSelected: (_) async {await widget.settings.setTheme(theme);await widget.settings.setGauge(theme.defaultGauge);if (!mounted) return;setState(() {_theme=theme;_style=theme.defaultGauge;});setSheet(() {});},)).toList();
           final gauges = HudGaugeStyle.values.map<Widget>((style) => ChoiceChip(label: Text(_gaugeLabel(style)), selected: _style == style,onSelected: (_) async {await widget.settings.setGauge(style);if (!mounted) return;setState(() => _style=style);setSheet(() {});},)).toList();
+          final gtLayouts = GtLayout.values.map<Widget>((layout) => ChoiceChip(label: Text(GtLayoutEngine.label(layout)), selected: widget.settings.gtLayout == layout,onSelected: (_) async {await widget.settings.setGtLayout(layout);if (!mounted) return;setSheet(() {});},)).toList();
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20,20,20,28),
             child: Column(mainAxisSize: MainAxisSize.min,children:[
               Text('HUD SETTINGS',style: TextStyle(color:_theme.accent,fontSize:18,fontWeight:FontWeight.bold)),
               const SizedBox(height:12),Wrap(spacing:8,runSpacing:8,children:themes),
               const SizedBox(height:12),Wrap(spacing:8,runSpacing:8,children:gauges),
+              if (_style == HudGaugeStyle.digitalGt) ...[const SizedBox(height:12),Align(alignment:Alignment.centerLeft,child:Text('DIGITAL GT LAYOUT',style:TextStyle(fontWeight:FontWeight.w800))),const SizedBox(height:8),Wrap(spacing:8,runSpacing:8,children:gtLayouts)],
               const SizedBox(height:8),
               ListTile(leading:Icon(Icons.settings_ethernet,color:_theme.accent),title:const Text('Automatic gear'),subtitle:const Text('Estimated from vehicle speed. OBD-II can provide true transmission data later.'),trailing:GearIndicator(gear:_estimatedGear(_speed),theme:_theme)),
               ListTile(title:Text(widget.settings.vehicleName),subtitle:Text(widget.settings.vehicleModel.isEmpty?'Vehicle profile':widget.settings.vehicleModel),leading:const Icon(Icons.directions_car),onTap:() async {final name=TextEditingController(text:widget.settings.vehicleName);final model=TextEditingController(text:widget.settings.vehicleModel);await showDialog<void>(context:context,builder:(dialogContext)=>AlertDialog(title:const Text('Vehicle profile'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:name,decoration:const InputDecoration(labelText:'Name')),TextField(controller:model,decoration:const InputDecoration(labelText:'Model'))]),actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),FilledButton(onPressed:() async {await widget.settings.setVehicle(name:name.text,model:model.text);if(dialogContext.mounted)Navigator.pop(dialogContext);setSheet(() {});},child:const Text('Save'))],));name.dispose();model.dispose();}),
@@ -179,6 +182,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   @override Widget build(BuildContext context){
     _theme=widget.settings.theme;_style=widget.settings.gauge;_mirror=widget.settings.mirror;
     final unitLabel=widget.settings.unit==SpeedUnit.kmh?'km/h':'mph',showRpm=widget.settings.showRpm&&_theme.showRpm,compact=widget.settings.compact;
+    final gtEnabled=_style==HudGaugeStyle.digitalGt;
+    final gtSpec=GtLayoutEngine.spec(widget.settings.gtLayout);
     final displayGear=_estimatedGear(_speed);
     final navigationActive=_session.active&&_navigationState!=null;
     final hudLayer=Stack(fit:StackFit.expand,children:[
@@ -186,12 +191,13 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       SafeArea(child:Stack(children:[
         Align(alignment:Alignment.center,child:Padding(padding:EdgeInsets.only(left:navigationActive?0:0,right:navigationActive?0:0),child:SpeedGauge(speed:widget.settings.toDisplaySpeed(_speed),maxSpeed:widget.settings.toDisplaySpeed(widget.settings.speedLimit),style:_style,theme:_theme,unitLabel:unitLabel,animate:widget.settings.animations))),
         if(showRpm)Positioned(top:navigationActive?8:(compact?8:42),left:0,right:0,child:Center(child:RpmIndicator(rpm:_rpm,theme:_theme,style:_theme.rpmStyle,animate:widget.settings.animations))),
-        if(_relevantTrafficSigns.isNotEmpty)Positioned(left:14,top:0,bottom:0,child:Center(child:_TrafficSignRail(signs:_relevantTrafficSigns,theme:_theme))),
-        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,message:_navigationMessage,style:_style),
+        if(_relevantTrafficSigns.isNotEmpty)Positioned(left:14,top:0,bottom:0,child:Center(child:_TrafficSignRail(signs:gtEnabled&&!gtSpec.showFullSignRail?_relevantTrafficSigns.take(1).toList(growable:false):_relevantTrafficSigns,theme:_theme))),
+        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,message:_navigationMessage,style:_style,compact:gtEnabled&&gtSpec.compactNavigation,showEta:!gtEnabled||gtSpec.showEta,showRoadName:!gtEnabled||gtSpec.showRoadName),
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
         Positioned(right:18,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
-        if(!compact)Positioned(left:18,bottom:14,child:Row(children:[_Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),if(_session.active)...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')]])),
+        if(!compact || (gtEnabled&&gtSpec.showGForce))Positioned(left:18,bottom:14,child:Row(children:[_Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),if(_session.active&&(!gtEnabled||gtSpec.showTrip))...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')]])),
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
+        if(gtEnabled&&gtSpec.showMap&&navigationActive)Positioned(left:110,top:42,child:GtRouteMap(route:_navigationState!.route,position:_lastPosition,theme:_theme,nextManeuver:_navigationState!.nextManeuver)),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
       ])),
     ]);
