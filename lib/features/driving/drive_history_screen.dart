@@ -50,7 +50,10 @@ class DriveHistoryScreen extends StatelessWidget {
           'Average: ${record.averageSpeedKmh.toStringAsFixed(1)} km/h\n'
           'Maximum: ${record.maxSpeedKmh.toStringAsFixed(1)} km/h\n'
           'Acceleration: ${record.maxAcceleration.toStringAsFixed(1)} m/s²\n'
-          'Braking: ${record.maxBraking.toStringAsFixed(1)} m/s²',
+          'Braking: ${record.maxBraking.toStringAsFixed(1)} m/s²\n'
+          'Lateral G: ${record.maxLateralG.toStringAsFixed(2)} G\n'
+          '0–60: ${record.zeroToSixtySeconds?.toStringAsFixed(2) ?? '—'} s\n'
+          '0–100: ${record.zeroToHundredSeconds?.toStringAsFixed(2) ?? '—'} s',
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
