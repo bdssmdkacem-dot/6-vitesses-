@@ -32,7 +32,7 @@ void main() {
   });
 
   test('IMU briefly bridges a stale GPS stream without unbounded drift', () {
-    final fusion = SensorFusionService();
+    final fusion = SensorFusionService(gpsFreshness: const Duration(seconds: 1));
     fusion.updateGps(GpsSample(
       speedKmh: 60,
       accuracyM: 6,
@@ -45,12 +45,12 @@ void main() {
       longitudinalAcceleration: 1,
       lateralAcceleration: 0,
       totalAcceleration: 1,
-      timestamp: t0.add(const Duration(milliseconds: 500)),
+      timestamp: t0.add(const Duration(milliseconds: 1200)),
       axis: 0,
       noiseConfidence: .9,
     ));
-    final sample = fusion.current(t0.add(const Duration(milliseconds: 1000)));
+    final sample = fusion.current(t0.add(const Duration(milliseconds: 1400)));
     expect(sample.source, SensorSource.imu);
-    expect(sample.speedKmh, closeTo(61.8, .2));
+    expect(sample.speedKmh, closeTo(65.04, .2));
   });
 }
