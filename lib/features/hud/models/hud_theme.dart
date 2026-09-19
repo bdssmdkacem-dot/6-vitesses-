@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum HudGaugeStyle { digital, circular, linear }
+enum HudGaugeStyle { digital, digitalGt, circular, linear }
 enum HudBackgroundStyle { solid, carbon, grid, road, night }
 enum HudRpmStyle { arc, bars, strip }
 
