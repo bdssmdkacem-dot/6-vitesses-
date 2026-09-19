@@ -92,7 +92,7 @@ class Elm327Session implements ObdAdapter {
       source: ObdTelemetrySource.obd,
       engineLoad: load == null ? null : load * 100 / 255,
       coolantTemperatureC: coolant == null ? null : coolant - 40,
-      rpm: rpmRaw == null ? null : rpmRaw * 4,
+      rpm: rpmRaw == null ? null : rpmRaw / 4,
       vehicleSpeedKmh: speed,
       throttlePosition: throttle == null ? null : throttle * 100 / 255,
     );
