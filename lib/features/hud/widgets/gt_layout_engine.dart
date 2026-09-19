@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/hud_theme.dart';
@@ -37,7 +38,7 @@ class _GtRoutePainter extends CustomPainter {
     final minLon=points.map((p)=>p.longitude).reduce(math.min),maxLon=points.map((p)=>p.longitude).reduce(math.max);
     final latSpan=math.max((maxLat-minLat).abs(),.0001),lonSpan=math.max((maxLon-minLon).abs(),.0001);
     Offset project(LatLng p)=>Offset(10+(p.longitude-minLon)/lonSpan*(size.width-20),size.height-(10+(p.latitude-minLat)/latSpan*(size.height-20)));
-    final path=Path()..moveTo(project(route.first).dx,project(route.first).dy);
+    final path=ui.Path()..moveTo(project(route.first).dx,project(route.first).dy);
     for(final p in route.skip(1)){final q=project(p);path.lineTo(q.dx,q.dy);}
     canvas.drawPath(path,Paint()..style=PaintingStyle.stroke..strokeWidth=7..strokeCap=StrokeCap.round..color=theme.secondary.withValues(alpha:.25));
     canvas.drawPath(path,Paint()..style=PaintingStyle.stroke..strokeWidth=3..strokeCap=StrokeCap.round..color=theme.accent);
