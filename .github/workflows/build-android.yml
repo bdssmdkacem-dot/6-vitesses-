@@ -5,122 +5,97 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: "3.41.9"
           cache: true
-      - name: Generate Android project
-        run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
-      - name: Add Android network and location permissions
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Verify static Android project
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          test -f android/settings.gradle
+          test -f android/build.gradle
+          test -f android/app/build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt
+          echo "Static Android project is present."
+          echo "Location declarations:"
+          grep -n "ACCESS_.*LOCATION" android/app/src/main/AndroidManifest.xml
+          echo "Application identity:"
+          grep -n "namespace\|applicationId" android/app/build.gradle
 
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          s = p.read_text()
-          marker = '<application'
-
-          permissions = [
-              '    <uses-permission android:name="android.permission.INTERNET"/>',
-              '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>',
-              '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
-              '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>',
-          ]
-
-          for permission in permissions:
-              name = permission.split('android:name="', 1)[1].split('"', 1)[0]
-              if f'android:name="{name}"' not in s:
-                  s = s.replace(marker, permission + '\n' + marker, 1)
-
-          p.write_text(s)
-
-          print("Final AndroidManifest permissions:")
-          for line in s.splitlines():
-              if '<uses-permission' in line:
-                  print(line.strip())
-          PY
-      - name: Force native foreground location permission flow
+      - name: Generate Gradle wrapper
         run: |
-          mkdir -p android/app/src/main/kotlin/com/sixvitesses/six_vitesses
-          cat > android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt <<'KOTLIN'
-          package com.sixvitesses.six_vitesses
-
-          import android.Manifest
-          import android.content.pm.PackageManager
-          import android.os.Bundle
-          import io.flutter.embedding.android.FlutterActivity
-
-          class MainActivity : FlutterActivity() {
-              private val locationRequestCode = 6101
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  requestLocationPermissionIfNeeded()
-              }
-
-              private fun requestLocationPermissionIfNeeded() {
-                  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                      val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                      val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-
-                      if (fine != PackageManager.PERMISSION_GRANTED &&
-                          coarse != PackageManager.PERMISSION_GRANTED) {
-                          requestPermissions(
-                              arrayOf(
-                                  Manifest.permission.ACCESS_FINE_LOCATION,
-                                  Manifest.permission.ACCESS_COARSE_LOCATION
-                              ),
-                              locationRequestCode
-                          )
-                      }
-                  }
-              }
-          }
-          KOTLIN
-
-      - name: Verify generated Android manifest before build
-        run: |
-          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
-          echo "Package/application identity:"
-          grep -R "applicationId\|namespace" android/app/build.gradle* android/app/build.gradle.kts 2>/dev/null || true
-          echo "Declared location permissions:"
-          grep -n "ACCESS_.*LOCATION" android/app/src/main/AndroidManifest.xml || true
-          echo "Generated manifest:"
-          cat android/app/src/main/AndroidManifest.xml
+          cd android
+          gradle wrapper --gradle-version 8.9
+          test -x gradlew
+          ./gradlew --version
 
       - run: flutter pub get
+
       - name: Generate launcher icon
         run: dart run flutter_launcher_icons
+
       - name: Generate native splash
         run: dart run flutter_native_splash:create
+
+      - name: Verify Android manifest after plugin generation
+        run: |
+          echo "Manifest after launcher/splash generation:"
+          cat android/app/src/main/AndroidManifest.xml
+          echo "Location declarations:"
+          grep -n "ACCESS_.*LOCATION" android/app/src/main/AndroidManifest.xml
+
+      - name: Verify merged release manifest
+        run: |
+          cd android
+          ./gradlew :app:processReleaseMainManifest --stacktrace
+          echo "Merged release manifest:"
+          cat app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
+          grep -q 'android.permission.ACCESS_FINE_LOCATION' app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
+          grep -q 'android.permission.ACCESS_COARSE_LOCATION' app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
+          grep -q 'com.sixvitesses.six_vitesses' app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
+          echo "Merged manifest location verification passed."
+
       - run: flutter analyze
       - run: flutter test
+
       - name: Build APK
         run: flutter build apk --release
-      - name: Verify APK permissions
+
+      - name: Verify APK identity and permissions
         run: |
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-badging.txt
           "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-permissions.txt
+          grep -q "package: name='com.sixvitesses.six_vitesses'" /tmp/apk-badging.txt
           grep -q "android.permission.ACCESS_FINE_LOCATION" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
           grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
-          echo "APK package/permissions:"
-          "$AAPT" dump badging build/app/outputs/flutter-apk/app-release.apk | head -20
-          echo "APK permission verification completed."
+          echo "APK identity and location permissions verified."
+
       - name: Build AAB
         run: flutter build appbundle --release
+
       - uses: actions/upload-artifact@v4
         with:
           name: six-vitesses-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: six-vitesses-release-aab
