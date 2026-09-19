@@ -70,48 +70,50 @@ class SensorFusionService {
     final motion = _motion;
     final gpsAge = gps == null ? const Duration(days: 1) : now.difference(gps.timestamp).abs();
     final imuAge = motion == null ? const Duration(days: 1) : now.difference(motion.timestamp).abs();
-    final gpsFresh = gps != null && !gps.isStale && gpsAge <= gpsFreshness;
-    final imuFresh = motion != null && imuAge <= imuFreshness;
+    final gpsSample = gps;
+    final motionSample = motion;
+    final gpsFresh = gpsSample != null && !gpsSample.isStale && gpsAge <= gpsFreshness;
+    final imuFresh = motionSample != null && imuAge <= imuFreshness;
 
     var speed = _fusedSpeed;
     var source = SensorSource.unavailable;
     var speedConfidence = 0.0;
 
     if (gpsFresh) {
-      speed = gps.speedKmh;
+      speed = gpsSample.speedKmh;
       _fusedSpeed = speed;
       _fusedSpeedAt = gps.timestamp;
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
-      speedConfidence = gps.speedConfidence;
+      speedConfidence = gpsSample.speedConfidence;
     } else if (motion != null && _fusedSpeedAt != null) {
       final sinceGps = now.difference(_fusedSpeedAt!);
       if (sinceGps <= imuSpeedHold) {
         final dt = previousComposeAt == null ? 0.0 : now.difference(previousComposeAt).inMilliseconds / 1000.0;
-        speed = (_fusedSpeed + motion.longitudinalAcceleration * dt * 3.6)
+        speed = (_fusedSpeed + motionSample.longitudinalAcceleration * dt * 3.6)
             .clamp(0.0, 400.0)
             .toDouble();
         _fusedSpeed = speed;
         source = SensorSource.imu;
-        speedConfidence = (motion.noiseConfidence *
+        speedConfidence = (motionSample.noiseConfidence *
                 (1.0 - sinceGps.inMilliseconds / imuSpeedHold.inMilliseconds))
             .clamp(0.0, 1.0)
             .toDouble();
       }
     }
 
-    final gpsAccel = gpsFresh ? gps.longitudinalAcceleration : null;
-    final imuAccel = imuFresh ? motion!.longitudinalAcceleration : null;
+    final gpsAccel = gpsFresh ? gpsSample.longitudinalAcceleration : null;
+    final imuAccel = imuFresh ? motionSample.longitudinalAcceleration : null;
     double acceleration = 0;
     if (gpsAccel != null && imuAccel != null) {
-      final wg = gps.speedConfidence.clamp(.15, 1.0);
-      final wi = motion!.noiseConfidence.clamp(.15, 1.0);
+      final wg = gpsSample.speedConfidence.clamp(.15, 1.0);
+      final wi = motionSample.noiseConfidence.clamp(.15, 1.0);
       acceleration = (gpsAccel * wg + imuAccel * wi) / (wg + wi);
     } else {
       acceleration = imuAccel ?? gpsAccel ?? 0;
     }
 
     final accelerationConfidence = imuFresh
-        ? motion!.noiseConfidence
+        ? motionSample.noiseConfidence
         : (gpsFresh ? gps.speedConfidence * .75 : 0.0);
     final overall = math.sqrt(speedConfidence * accelerationConfidence)
         .clamp(0.0, 1.0)
@@ -123,8 +125,8 @@ class SensorFusionService {
     return SensorFusionSample(
       speedKmh: speed,
       longitudinalAcceleration: acceleration.clamp(-15.0, 15.0).toDouble(),
-      lateralAcceleration: imuFresh ? motion!.lateralAcceleration : 0,
-      totalAcceleration: imuFresh ? motion!.totalAcceleration : 0,
+      lateralAcceleration: imuFresh ? motionSample.lateralAcceleration : 0,
+      totalAcceleration: imuFresh ? motionSample.totalAcceleration : 0,
       speedConfidence: speedConfidence,
       accelerationConfidence: accelerationConfidence,
       overallConfidence: overall,
