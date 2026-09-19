@@ -61,12 +61,26 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   bool _mirror=false,_ready=false,_gpsStale=true,_obdConnecting=false; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
+  static const _locationPermissionChannel =
+      MethodChannel('six_vitesses/location_permission');
+
   Future<void> _initializeHud() async {
-    // MainActivity owns the first Android runtime permission request. Do not
-    // call Geolocator.requestPermission() here at the same time: two permission
-    // requesters can race on Android and leave the system dialog unshown.
-    // Wait for the native request to settle, then read the resulting state.
-    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    // Android owns the runtime permission request through MainActivity.
+    // Flutter waits for the actual native callback instead of using a timing
+    // delay. This prevents two simultaneous permission requesters.
+    try {
+      final nativeStatus = await _locationPermissionChannel.invokeMethod<String>(
+        'request',
+      );
+      if (nativeStatus == 'granted') {
+        await _gpsService.refreshPermission();
+      }
+    } on PlatformException {
+      // Fall back to the current Flutter permission state below.
+    }
+
     if (!mounted) return;
 
     var permission = await _gpsService.refreshPermission();
