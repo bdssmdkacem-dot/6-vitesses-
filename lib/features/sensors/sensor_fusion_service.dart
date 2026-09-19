@@ -105,16 +105,16 @@ class SensorFusionService {
     final imuAccel = imuFresh ? motionSample.longitudinalAcceleration : null;
     double acceleration = 0;
     if (gpsAccel != null && imuAccel != null) {
-      final wg = (gpsSample?.speedConfidence ?? .15).clamp(.15, 1.0);
-      final wi = (motionSample?.noiseConfidence ?? .15).clamp(.15, 1.0);
+      final wg = gpsSample.speedConfidence.clamp(.15, 1.0);
+      final wi = motionSample.noiseConfidence.clamp(.15, 1.0);
       acceleration = (gpsAccel * wg + imuAccel * wi) / (wg + wi);
     } else {
       acceleration = imuAccel ?? gpsAccel ?? 0;
     }
 
     final accelerationConfidence = imuFresh
-        ? (motionSample?.noiseConfidence ?? 0.0)
-        : (gpsFresh ? (gpsSample?.speedConfidence ?? 0.0) * .75 : 0.0);
+        ? motionSample.noiseConfidence
+        : (gpsFresh ? gpsSample.speedConfidence * .75 : 0.0);
     final overall = math.sqrt(speedConfidence * accelerationConfidence)
         .clamp(0.0, 1.0)
         .toDouble();
