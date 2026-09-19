@@ -44,6 +44,7 @@ class SensorFusionService {
   MotionSample? _motion;
   double _fusedSpeed = 0;
   DateTime? _fusedSpeedAt;
+  DateTime? _lastFusionAt;
 
   SensorFusionSample updateGps(GpsSample sample) {
     if (!sample.isStale) {
@@ -63,6 +64,8 @@ class SensorFusionService {
       _compose(now ?? DateTime.now());
 
   SensorFusionSample _compose(DateTime now) {
+    final previousComposeAt = _lastFusionAt;
+    _lastFusionAt = now;
     final gps = _gps;
     final motion = _motion;
     final gpsAge = gps == null ? const Duration(days: 1) : now.difference(gps.timestamp).abs();
@@ -83,7 +86,7 @@ class SensorFusionService {
     } else if (motion != null && _fusedSpeedAt != null) {
       final sinceGps = now.difference(_fusedSpeedAt!);
       if (sinceGps <= imuSpeedHold) {
-        final dt = sinceGps.inMilliseconds / 1000.0;
+        final dt = previousComposeAt == null ? 0.0 : now.difference(previousComposeAt).inMilliseconds / 1000.0;
         speed = (_fusedSpeed + motion.longitudinalAcceleration * dt * 3.6)
             .clamp(0.0, 400.0)
             .toDouble();
