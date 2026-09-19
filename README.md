@@ -171,12 +171,14 @@ These assets will be connected to the native Android launcher and Android Splash
 
 ### Phase D — Sensor fusion and performance
 
-- [ ] GPS + IMU fused speed/acceleration confidence.
-- [ ] GPS jump rejection.
-- [ ] Sensor-noise confidence.
-- [ ] Explicit GPS / IMU / fused source indicator.
-- [ ] Battery/performance profiling during long drives.
-- [ ] Long-session memory/stability validation.
+- [x] GPS + IMU fused speed/acceleration confidence.
+- [x] GPS jump rejection with physically plausible movement filtering.
+- [x] Sensor-noise confidence from filtered IMU residuals.
+- [x] Explicit GPS / IMU / fused / unavailable source indicator.
+- [x] Long-drive sensor workload instrumentation: callback count, average/max callback cost and event rate.
+- [x] Long-session stability safeguards: bounded GPS jump handling, stale-source fallback and short IMU bridge without unbounded speed drift.
+- [x] Sensor diagnostics expose confidence, rejected GPS jumps and workload counters.
+- [ ] Physical battery-drain profiling on representative Android devices.
 
 ### Phase E — Driving performance features
 
