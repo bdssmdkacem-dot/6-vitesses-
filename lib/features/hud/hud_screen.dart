@@ -337,6 +337,27 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   }
   @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_routeService.dispose();_navigationSession.stop();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
 }
+String _sourceLabel(SensorSource source) => switch (source) {
+  SensorSource.fused => 'FUSED',
+  SensorSource.gps => 'GPS',
+  SensorSource.imu => 'IMU',
+  SensorSource.unavailable => 'NO SENSOR',
+};
+
+IconData _sourceIcon(SensorSource source) => switch (source) {
+  SensorSource.fused => Icons.merge_type,
+  SensorSource.gps => Icons.gps_fixed,
+  SensorSource.imu => Icons.sensors,
+  SensorSource.unavailable => Icons.sensors_off,
+};
+
+Color _sourceColor(SensorSource source, HudTheme theme) => switch (source) {
+  SensorSource.fused => theme.accent,
+  SensorSource.gps => theme.secondary,
+  SensorSource.imu => Colors.orangeAccent,
+  SensorSource.unavailable => Colors.redAccent,
+};
+
 int _estimatedGear(double speedKmh){if(speedKmh<2)return 0;if(speedKmh<15)return 1;if(speedKmh<30)return 2;if(speedKmh<50)return 3;if(speedKmh<70)return 4;if(speedKmh<95)return 5;return 6;}
 
 class _TrafficSignRail extends StatelessWidget {
