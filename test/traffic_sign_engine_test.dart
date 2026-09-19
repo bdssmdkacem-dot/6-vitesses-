@@ -38,3 +38,77 @@ void main() {
     expect(trafficSignTypeFromOsm('maxspeed'), TrafficSignType.speedLimit);
   });
 }
+
+
+  test('associates signs with the active route and rejects a parallel road', () {
+    final engine = TrafficSignEngine(routeToleranceMeters: 45);
+    const route = [
+      LatLng(34.0200, -6.8416),
+      LatLng(34.0250, -6.8416),
+    ];
+    final result = engine.findRelevant(
+      vehiclePosition: const LatLng(34.0210, -6.8416),
+      headingDegrees: 0,
+      vehicleSpeedKmh: 40,
+      vehicleRouteProgressMeters: 100,
+      route: route,
+      signs: const [
+        TrafficSign(
+          type: TrafficSignType.speedLimit,
+          position: LatLng(34.0220, -6.8416),
+          value: 50,
+          directionDegrees: 0,
+        ),
+        TrafficSign(
+          type: TrafficSignType.speedLimit,
+          position: LatLng(34.0220, -6.8430),
+          value: 30,
+          directionDegrees: 0,
+        ),
+      ],
+    );
+    expect(result, hasLength(1));
+    expect(result.single.sign.value, 50);
+  });
+
+  test('rejects crossing-road signs when route direction is incompatible', () {
+    final engine = TrafficSignEngine();
+    final result = engine.findRelevant(
+      vehiclePosition: const LatLng(34.0200, -6.8416),
+      headingDegrees: 0,
+      vehicleSpeedKmh: 40,
+      route: const [
+        LatLng(34.0200, -6.8416),
+        LatLng(34.0250, -6.8416),
+      ],
+      signs: const [
+        TrafficSign(
+          type: TrafficSignType.trafficSignals,
+          position: LatLng(34.0208, -6.8410),
+          directionDegrees: 90,
+        ),
+      ],
+    );
+    expect(result, isEmpty);
+  });
+
+  test('keeps roundabout signs ahead on the active route', () {
+    final engine = TrafficSignEngine();
+    final result = engine.findRelevant(
+      vehiclePosition: const LatLng(34.0200, -6.8416),
+      headingDegrees: 0,
+      vehicleSpeedKmh: 35,
+      route: const [
+        LatLng(34.0200, -6.8416),
+        LatLng(34.0250, -6.8416),
+      ],
+      vehicleRouteProgressMeters: 0,
+      signs: const [
+        TrafficSign(
+          type: TrafficSignType.roundabout,
+          position: LatLng(34.0230, -6.8416),
+        ),
+      ],
+    );
+    expect(result.single.sign.type, TrafficSignType.roundabout);
+  });
