@@ -158,7 +158,18 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               Text('HUD SETTINGS',style: TextStyle(color:_theme.accent,fontSize:18,fontWeight:FontWeight.bold)),
               const SizedBox(height:12),Wrap(spacing:8,runSpacing:8,children:themes),
               const SizedBox(height:12),Wrap(spacing:8,runSpacing:8,children:gauges),
-              if (_style == HudGaugeStyle.digitalGt) ...[const SizedBox(height:12),Align(alignment:Alignment.centerLeft,child:Text('DIGITAL GT LAYOUT',style:TextStyle(fontWeight:FontWeight.w800))),const SizedBox(height:8),Wrap(spacing:8,runSpacing:8,children:gtLayouts)],
+              if (_style == HudGaugeStyle.digitalGt) ...[
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'DIGITAL GT LAYOUT',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: gtLayouts),
+              ],
               const SizedBox(height:8),
               ListTile(leading:Icon(Icons.settings_ethernet,color:_theme.accent),title:const Text('Automatic gear'),subtitle:const Text('Estimated from vehicle speed. OBD-II can provide true transmission data later.'),trailing:GearIndicator(gear:_estimatedGear(_speed),theme:_theme)),
               ListTile(title:Text(widget.settings.vehicleName),subtitle:Text(widget.settings.vehicleModel.isEmpty?'Vehicle profile':widget.settings.vehicleModel),leading:const Icon(Icons.directions_car),onTap:() async {final name=TextEditingController(text:widget.settings.vehicleName);final model=TextEditingController(text:widget.settings.vehicleModel);await showDialog<void>(context:context,builder:(dialogContext)=>AlertDialog(title:const Text('Vehicle profile'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:name,decoration:const InputDecoration(labelText:'Name')),TextField(controller:model,decoration:const InputDecoration(labelText:'Model'))]),actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),FilledButton(onPressed:() async {await widget.settings.setVehicle(name:name.text,model:model.text);if(dialogContext.mounted)Navigator.pop(dialogContext);setSheet(() {});},child:const Text('Save'))],));name.dispose();model.dispose();}),
