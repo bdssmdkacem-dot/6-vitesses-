@@ -72,7 +72,8 @@ class SensorFusionService {
   }
 
   bool obdIsFresh(DateTime now) {
-    final obd = _obd;
+    // OBD is intentionally not part of the active fusion path yet.
+    // GPS + IMU are the only authoritative runtime sources for now.
     final timestamp = obd?.timestamp;
     return obd != null &&
         obd.available &&
@@ -101,31 +102,23 @@ class SensorFusionService {
     final gpsFresh =
         gps != null && !gps.isStale && gpsAge <= gpsFreshness;
     final imuFresh = motion != null && imuAge <= imuFreshness;
-    final obdFresh = obdIsFresh(now);
+    const obdFresh = false;
 
     var speed = _fusedSpeed;
     var source = SensorSource.unavailable;
     var speedConfidence = 0.0;
 
-    // OBD is optional. When fresh and complete, use ECU speed as the
-    // preferred vehicle-speed source; GPS remains the normal fallback.
-    final obdSpeed = obd?.vehicleSpeedKmh;
-    final obdTimestamp = obd?.timestamp;
-    if (obdFresh && obdSpeed != null && obdTimestamp != null) {
-      speed = obdSpeed.clamp(0.0, 400.0).toDouble();
-      _fusedSpeed = speed;
-      _fusedSpeedAt = obdTimestamp;
-      speedConfidence = 0.98;
-      source = gpsFresh || imuFresh ? SensorSource.fused : SensorSource.obd;
-    } else if (gpsFresh) {
+    // Active speed source: GPS first. IMU may only propagate a recent
+    // GPS speed for a short hold window; it never depends on OBD.
+    if (gpsFresh) {
       speed = gps.speedKmh;
       _fusedSpeed = speed;
       _fusedSpeedAt = gps.timestamp;
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
       speedConfidence = gps.speedConfidence;
-    } else {
+    } else if (imuFresh && motion != null) {
       final fusedSpeedAt = _fusedSpeedAt;
-      if (motion != null && fusedSpeedAt != null) {
+      if (fusedSpeedAt != null) {
         final sinceSpeed = now.difference(fusedSpeedAt);
         if (sinceSpeed <= imuSpeedHold) {
           final dt = previousComposeAt == null
@@ -143,7 +136,13 @@ class SensorFusionService {
                           imuSpeedHold.inMilliseconds))
               .clamp(0.0, 1.0)
               .toDouble();
+        } else {
+          speed = 0;
+          source = SensorSource.imu;
         }
+      } else {
+        speed = 0;
+        source = SensorSource.imu;
       }
     }
 
@@ -170,19 +169,14 @@ class SensorFusionService {
         .clamp(0.0, 1.0)
         .toDouble();
 
-    if (!gpsFresh && !imuFresh && !obdFresh) {
-      // Keep the last GPS speed as a safe display fallback when no newer
-      // sensor sample is available. Confidence remains zero because the
-      // sample is stale; the HUD can still expose its stale state.
+    if (!gpsFresh && !imuFresh) {
       if (_fusedSpeedAt != null && speed > 0) {
         source = SensorSource.gps;
       } else {
         source = SensorSource.unavailable;
       }
-    } else if (obdFresh && !gpsFresh && !imuFresh) {
-      source = SensorSource.obd;
     } else if (source == SensorSource.fused && overall < .25) {
-      source = obdFresh ? SensorSource.fused : SensorSource.gps;
+      source = SensorSource.gps;
     }
 
     return SensorFusionSample(
