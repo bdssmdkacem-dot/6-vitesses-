@@ -69,7 +69,7 @@ class PerformanceMetrics {
     final previousAt = _lastAt;
     if (previousAt != null) {
       final dt = timestamp.difference(previousAt).inMilliseconds / 1000.0;
-      if (dt > 0 && dt <= 2) {
+      if (dt > 0 && dt <= 10) {
         _distanceKm += speed * dt / 3600.0;
       }
     }
