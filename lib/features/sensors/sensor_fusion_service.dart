@@ -171,7 +171,14 @@ class SensorFusionService {
         .toDouble();
 
     if (!gpsFresh && !imuFresh && !obdFresh) {
-      source = SensorSource.unavailable;
+      // Keep the last GPS speed as a safe display fallback when no newer
+      // sensor sample is available. Confidence remains zero because the
+      // sample is stale; the HUD can still expose its stale state.
+      if (_fusedSpeedAt != null && speed > 0) {
+        source = SensorSource.gps;
+      } else {
+        source = SensorSource.unavailable;
+      }
     } else if (obdFresh && !gpsFresh && !imuFresh) {
       source = SensorSource.obd;
     } else if (source == SensorSource.fused && overall < .25) {
