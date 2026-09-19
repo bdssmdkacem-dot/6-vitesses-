@@ -23,7 +23,9 @@ class OsmTrafficService {
     final key = '${center.latitude.toStringAsFixed(3)}:${center.longitude.toStringAsFixed(3)}:$radiusMeters';
     final now = DateTime.now();
     if (_cache != null && _cacheAt != null && _cacheKey == key &&
-        now.difference(_cacheAt!) < const Duration(seconds: 30)) return _cache!;
+        now.difference(_cacheAt!) < const Duration(seconds: 30)) {
+      return _cache!;
+    }
     final lat = center.latitude.toStringAsFixed(6);
     final lon = center.longitude.toStringAsFixed(6);
     final radius = radiusMeters.round();
