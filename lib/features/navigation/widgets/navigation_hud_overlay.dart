@@ -99,7 +99,7 @@ class _ManeuverIcon extends StatelessWidget {
       case NavigationManeuverType.arrive: icon = Icons.flag;
       default: icon = Icons.straight;
     }
-    return Icon(icon, color: color, size: compact ? 34 : 42);
+    return Icon(icon, color: color, size: 42);
   }
 }
 
