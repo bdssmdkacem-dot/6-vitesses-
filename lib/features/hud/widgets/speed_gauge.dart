@@ -12,7 +12,7 @@ class SpeedGauge extends StatelessWidget {
       HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth),
       HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
       HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
-    });
+    }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
   const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth});
