@@ -86,8 +86,7 @@ class SensorFusionService {
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
       speedConfidence = gpsSample.speedConfidence;
     } else if (motionSample != null && _fusedSpeedAt != null) {
-      final fusedAt = _fusedSpeedAt;
-      final sinceGps = now.difference(fusedAt);
+      final sinceGps = now.difference(_fusedSpeedAt!);
       if (sinceGps <= imuSpeedHold) {
         final dt = previousComposeAt == null ? 0.0 : now.difference(previousComposeAt).inMilliseconds / 1000.0;
         speed = (_fusedSpeed + motionSample.longitudinalAcceleration * dt * 3.6)
