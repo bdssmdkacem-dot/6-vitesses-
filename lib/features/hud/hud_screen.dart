@@ -159,6 +159,11 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
             children: [
               Text('Permission: ${_gpsService.permission.name}'),
               Text('Status: ${_gpsService.status}'),
+              Text('Source: ${_sourceLabel(_fusion.source)}'),
+              Text('Confidence: ${(_fusion.overallConfidence * 100).round()}%'),
+              Text('GPS jumps rejected: ${_gpsService.jumpRejections}'),
+              Text('IMU noise confidence: ${(_fusion.accelerationConfidence * 100).round()}%'),
+              Text('Sensor callbacks: ${_performanceMonitor.snapshot().events}'),
               if (_gpsService.lastError != null) Text('Error: ${_gpsService.lastError}'),
             ],
           ),
