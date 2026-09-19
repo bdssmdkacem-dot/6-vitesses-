@@ -10,6 +10,7 @@ class Elm327Session implements ObdAdapter {
   final _controller = StreamController<ObdTelemetry>.broadcast();
   bool _connected = false;
   Timer? _pollTimer;
+  bool _pollInFlight = false;
 
   @override
   bool get connected => _connected;
@@ -21,12 +22,14 @@ class Elm327Session implements ObdAdapter {
   Future<void> connectToAddress(String address) async {
     await transport.connectToAddress(address);
     _connected = true;
+    await _initializeElm327();
   }
 
   @override
   Future<void> connect() async {
     await transport.connect();
     _connected = true;
+    await _initializeElm327();
   }
 
   @override
@@ -35,6 +38,14 @@ class Elm327Session implements ObdAdapter {
     _pollTimer?.cancel();
     _pollTimer = null;
     await transport.disconnect();
+  }
+
+  Future<void> _initializeElm327() async {
+    const commands = ['ATZ', 'ATE0', 'ATL0', 'ATS0', 'ATSP0'];
+    for (final command in commands) {
+      try { await transport.send(command); } catch (_) {}
+      if (command == 'ATZ') await Future<void>.delayed(const Duration(milliseconds: 800));
+    }
   }
 
   Future<double?> readPid(String pid) async {
@@ -72,11 +83,14 @@ class Elm327Session implements ObdAdapter {
   void startTelemetryPolling({Duration interval = const Duration(milliseconds: 500)}) {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(interval, (_) async {
-      if (!_connected) return;
+      if (!_connected || _pollInFlight) return;
+      _pollInFlight = true;
       try {
         _controller.add(await readStandardTelemetry());
       } catch (_) {
         _controller.add(const ObdTelemetry(source: ObdTelemetrySource.unavailable));
+      } finally {
+        _pollInFlight = false;
       }
     });
   }
