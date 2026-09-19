@@ -7,7 +7,7 @@ enum SpeedUnit { kmh, mph }
 class AppSettings extends ChangeNotifier {
   AppSettings._(this._prefs);
   final SharedPreferences _prefs;
-  static const _themeKey='hud_theme', _gaugeKey='hud_gauge', _gtLayoutKey='gt_layout', _mirrorKey='hud_mirror', _gearKey='hud_gear', _unitKey='speed_unit', _limitKey='speed_limit', _vehicleNameKey='vehicle_name', _vehicleModelKey='vehicle_model', _obdEnabledKey='obd_enabled', _animationsKey='hud_animations', _rpmKey='hud_rpm', _compactKey='hud_compact';
+  static const _themeKey='hud_theme', _gaugeKey='hud_gauge', _gtLayoutKey='gt_layout', _mirrorKey='hud_mirror', _gearKey='hud_gear', _unitKey='speed_unit', _limitKey='speed_limit', _vehicleNameKey='vehicle_name', _vehicleModelKey='vehicle_model', _obdEnabledKey='obd_enabled', _obdAddressKey='obd_address', _animationsKey='hud_animations', _rpmKey='hud_rpm', _compactKey='hud_compact';
 
   HudTheme _theme=HudTheme.midnight;
   HudGaugeStyle _gauge=HudGaugeStyle.digital;
@@ -16,7 +16,7 @@ class AppSettings extends ChangeNotifier {
   int _gear=0;
   SpeedUnit _unit=SpeedUnit.kmh;
   double _speedLimit=240;
-  String _vehicleName='My Car',_vehicleModel='';
+  String _vehicleName='My Car',_vehicleModel='',_obdAddress='';
 
   static Future<AppSettings> load() async {
     final prefs=await SharedPreferences.getInstance();
@@ -31,13 +31,14 @@ class AppSettings extends ChangeNotifier {
     s._vehicleName=prefs.getString(_vehicleNameKey)??'My Car';
     s._vehicleModel=prefs.getString(_vehicleModelKey)??'';
     s._obdEnabled=prefs.getBool(_obdEnabledKey)??false;
+    s._obdAddress=prefs.getString(_obdAddressKey)??'';
     s._animations=prefs.getBool(_animationsKey)??true;
     s._showRpm=prefs.getBool(_rpmKey)??true;
     s._compact=prefs.getBool(_compactKey)??false;
     return s;
   }
   static HudTheme _themeFromIndex(int i)=>HudTheme.all[i.clamp(0,HudTheme.all.length-1).toInt()];
-  HudTheme get theme=>_theme; HudGaugeStyle get gauge=>_gauge; GtLayout get gtLayout=>_gtLayout; bool get mirror=>_mirror; int get gear=>_gear; SpeedUnit get unit=>_unit; double get speedLimit=>_speedLimit; String get vehicleName=>_vehicleName; String get vehicleModel=>_vehicleModel; bool get obdEnabled=>_obdEnabled; bool get animations=>_animations; bool get showRpm=>_showRpm; bool get compact=>_compact;
+  HudTheme get theme=>_theme; HudGaugeStyle get gauge=>_gauge; GtLayout get gtLayout=>_gtLayout; bool get mirror=>_mirror; int get gear=>_gear; SpeedUnit get unit=>_unit; double get speedLimit=>_speedLimit; String get vehicleName=>_vehicleName; String get vehicleModel=>_vehicleModel; bool get obdEnabled=>_obdEnabled; String get obdAddress=>_obdAddress; bool get animations=>_animations; bool get showRpm=>_showRpm; bool get compact=>_compact;
   double toDisplaySpeed(double kmh)=>_unit==SpeedUnit.kmh?kmh:kmh*0.621371;
   Future<void> setTheme(HudTheme v)async{_theme=v;await _prefs.setInt(_themeKey,HudTheme.all.indexOf(v));notifyListeners();}
   Future<void> setGauge(HudGaugeStyle v)async{_gauge=v;await _prefs.setInt(_gaugeKey,v.index);notifyListeners();}
@@ -48,6 +49,7 @@ class AppSettings extends ChangeNotifier {
   Future<void> setSpeedLimit(double v)async{_speedLimit=v.clamp(60,360).toDouble();await _prefs.setDouble(_limitKey,_speedLimit);notifyListeners();}
   Future<void> setVehicle({required String name,required String model})async{_vehicleName=name.trim().isEmpty?'My Car':name.trim();_vehicleModel=model.trim();await _prefs.setString(_vehicleNameKey,_vehicleName);await _prefs.setString(_vehicleModelKey,_vehicleModel);notifyListeners();}
   Future<void> setObdEnabled(bool v)async{_obdEnabled=v;await _prefs.setBool(_obdEnabledKey,v);notifyListeners();}
+  Future<void> setObdAddress(String v)async{_obdAddress=v.trim();await _prefs.setString(_obdAddressKey,_obdAddress);notifyListeners();}
   Future<void> setAnimations(bool v)async{_animations=v;await _prefs.setBool(_animationsKey,v);notifyListeners();}
   Future<void> setShowRpm(bool v)async{_showRpm=v;await _prefs.setBool(_rpmKey,v);notifyListeners();}
   Future<void> setCompact(bool v)async{_compact=v;await _prefs.setBool(_compactKey,v);notifyListeners();}
