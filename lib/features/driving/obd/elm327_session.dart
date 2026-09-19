@@ -18,6 +18,13 @@ class Elm327Session implements ObdAdapter {
   Stream<ObdTelemetry> get telemetry => _controller.stream;
 
   @override
+  Future<void> connectToAddress(String address) async {
+    if (transport is dynamic) {
+      throw StateError('The transport must implement address-based connection.');
+    }
+  }
+
+  @override
   Future<void> connect() async {
     await transport.connect();
     _connected = true;
