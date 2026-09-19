@@ -27,6 +27,7 @@ class PerformanceSnapshot {
 class PerformanceMetrics {
   DateTime? _start;
   DateTime? _zeroStart;
+  double _previousSpeed = 0;
   double _maxSpeed = 0;
   double _maxAcceleration = 0;
   double _maxBraking = 0;
@@ -41,6 +42,7 @@ class PerformanceMetrics {
   void reset(DateTime startedAt) {
     _start = startedAt;
     _zeroStart = null;
+    _previousSpeed = 0;
     _maxSpeed = 0;
     _maxAcceleration = 0;
     _maxBraking = 0;
@@ -74,16 +76,21 @@ class PerformanceMetrics {
 
     if (speedKmh <= 2 && _zeroStart == null) {
       _zeroStart = timestamp;
-    } else if (_zeroStart != null && speedKmh > 2) {
-      _zeroStart = _zeroStart;
-      final elapsed = timestamp.difference(_zeroStart!).inMilliseconds / 1000.0;
-      if (_zeroToSixty == null && speedKmh >= 60 && elapsed >= 0.2 && elapsed <= 120) {
-        _zeroToSixty = elapsed;
-      }
-      if (_zeroToHundred == null && speedKmh >= 100 && elapsed >= 0.2 && elapsed <= 120) {
-        _zeroToHundred = elapsed;
-      }
     }
+    if (_zeroStart != null && _previousSpeed < 60 && speedKmh >= 60) {
+      final elapsed = timestamp.difference(_zeroStart!).inMilliseconds / 1000.0;
+      if (_zeroToSixty == null && elapsed >= 0.2 && elapsed <= 120) _zeroToSixty = elapsed;
+    }
+    if (_zeroStart != null && _previousSpeed < 100 && speedKmh >= 100) {
+      final elapsed = timestamp.difference(_zeroStart!).inMilliseconds / 1000.0;
+      if (_zeroToHundred == null && elapsed >= 0.2 && elapsed <= 120) _zeroToHundred = elapsed;
+    }
+    if (speedKmh < 2) {
+      _zeroStart = timestamp;
+      _zeroToSixty = null;
+      _zeroToHundred = null;
+    }
+    _previousSpeed = speedKmh;
   }
 
   PerformanceSnapshot snapshot(DateTime now) => PerformanceSnapshot(
