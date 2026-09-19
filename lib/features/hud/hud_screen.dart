@@ -205,14 +205,14 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(_relevantTrafficSigns.isNotEmpty)Positioned(left:14,top:0,bottom:0,child:Center(child:_TrafficSignRail(signs:gtEnabled&&!gtSpec.showFullSignRail?_relevantTrafficSigns.take(1).toList(growable:false):_relevantTrafficSigns,theme:_theme))),
         if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,message:_navigationMessage,style:_style,compact:gtEnabled&&gtSpec.compactNavigation,showEta:!gtEnabled||gtSpec.showEta,showRoadName:!gtEnabled||gtSpec.showRoadName),
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
-        Positioned(right:18,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
+        Positioned(right:104,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
         if(!compact || (gtEnabled&&gtSpec.showGForce))Positioned(left:18,bottom:14,child:Row(children:[_Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),if(_session.active&&(!gtEnabled||gtSpec.showTrip))...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')]])),
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if (gtEnabled && gtSpec.showMap && navigationActive)
           Positioned(
-            right: 12,
-            top: widget.settings.gtLayout == GtLayout.nav ? 44 : null,
-            bottom: widget.settings.gtLayout == GtLayout.touring ? 52 : null,
+            left: 104,
+            top: widget.settings.gtLayout == GtLayout.nav ? 46 : null,
+            bottom: widget.settings.gtLayout == GtLayout.touring ? 58 : null,
             child: GtRouteMap(
               route: _navigationState!.route,
               position: _lastPosition,
