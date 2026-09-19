@@ -19,6 +19,13 @@ jobs:
           flutter-version: "3.41.9"
           cache: true
 
+      - name: Create Android local.properties
+        run: |
+          test -n "$FLUTTER_ROOT"
+          printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
+          echo "Generated android/local.properties for GitHub Actions."
+          cat android/local.properties
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
