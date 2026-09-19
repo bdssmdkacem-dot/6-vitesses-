@@ -25,7 +25,25 @@ class GtRouteMap extends StatelessWidget {
   final LatLng? position;
   final HudTheme theme;
   final NavigationManeuver? nextManeuver; final bool compact;
-  @override Widget build(BuildContext context)=>Container(width:compact?210:250,height:compact?100:118,padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.58),borderRadius:BorderRadius.circular(16),border:Border.all(color:theme.secondary.withValues(alpha:.42))),child:CustomPaint(painter:_GtRoutePainter(route:route,position:position,theme:theme,nextManeuver:nextManeuver)));
+  @override
+  Widget build(BuildContext context)=>Container(
+    width: compact ? 210 : 230,
+    height: compact ? 100 : 108,
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha:.58),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color:theme.secondary.withValues(alpha:.42)),
+    ),
+    child: CustomPaint(
+      painter:_GtRoutePainter(
+        route:route,
+        position:position,
+        theme:theme,
+        nextManeuver:nextManeuver,
+      ),
+    ),
+  );
 }
 
 class _GtRoutePainter extends CustomPainter {
