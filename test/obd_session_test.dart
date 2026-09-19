@@ -9,6 +9,7 @@ class FakeObdTransport implements ObdTransport {
   bool _connected = false;
   @override bool get connected => _connected;
   @override Future<void> connect() async => _connected = true;
+  @override Future<void> connectToAddress(String address) async => _connected = true;
   @override Future<void> disconnect() async => _connected = false;
   @override Future<String> send(String command) async => responses[command] ?? '';
 }
