@@ -3,15 +3,26 @@ plugins {
     id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
 }
+
+def releaseStoreFile = System.getenv("RELEASE_STORE_FILE")
+def releaseStorePassword = System.getenv("RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = System.getenv("RELEASE_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
+    .every { value -> value != null && !value.trim().isEmpty() }
+
 android {
     namespace = "com.sixvitesses.six_vitesses"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
+
     defaultConfig {
         applicationId = "com.sixvitesses.six_vitesses"
         minSdk = 24
@@ -19,6 +30,25 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-    buildTypes { release { signingConfig = signingConfigs.debug } }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig hasReleaseSigning
+                ? signingConfigs.release
+                : signingConfigs.debug
+        }
+    }
 }
+
 flutter { source = "../.." }
