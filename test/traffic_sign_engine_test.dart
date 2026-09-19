@@ -37,8 +37,6 @@ void main() {
     expect(trafficSignTypeFromOsm('give_way'), TrafficSignType.giveWay);
     expect(trafficSignTypeFromOsm('maxspeed'), TrafficSignType.speedLimit);
   });
-}
-
 
   test('associates signs with the active route and rejects a parallel road', () {
     final engine = TrafficSignEngine(routeToleranceMeters: 45);
@@ -112,3 +110,4 @@ void main() {
     );
     expect(result.single.sign.type, TrafficSignType.roundabout);
   });
+}
