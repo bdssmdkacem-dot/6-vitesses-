@@ -118,6 +118,116 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release
 
+      - name: Deep verify final APK and merged release manifest
+        run: |
+          set -euo pipefail
+
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          test -x "$AAPT"
+
+          echo "=== APK SHA-256 ==="
+          sha256sum "$APK"
+
+          echo "=== APK badging / identity / target SDK ==="
+          "$AAPT" dump badging "$APK" | tee /tmp/apk-badging-deep.txt
+
+          echo "=== APK permissions (complete) ==="
+          "$AAPT" dump permissions "$APK" | tee /tmp/apk-permissions-deep.txt
+
+          echo "=== APK AndroidManifest.xml tree ==="
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml | tee /tmp/apk-manifest-tree.txt
+
+          echo "=== Locate merged release manifests ==="
+          find android/app/build -type f -path '*/merged_manifests/*/AndroidManifest.xml' -print | sort
+          find android/app/build -type f -path '*/intermediates/*manifest*/AndroidManifest.xml' -print | sort
+
+          MERGED="$(find android/app/build -type f -path '*/merged_manifests/*/AndroidManifest.xml' -print | sort | head -1)"
+          if [ -z "$MERGED" ]; then
+            MERGED="$(find android/app/build -type f -path '*/intermediates/*manifest*/AndroidManifest.xml' -print | sort | head -1)"
+          fi
+          test -n "$MERGED"
+          echo "Using merged manifest: $MERGED"
+          cat "$MERGED"
+
+          echo "=== Required manifest declarations ==="
+          grep -Eq 'android.permission.ACCESS_FINE_LOCATION' "$MERGED"
+          grep -Eq 'android.permission.ACCESS_COARSE_LOCATION' "$MERGED"
+          grep -Eq 'android.permission.INTERNET' "$MERGED"
+          grep -Eq 'android.permission.ACCESS_NETWORK_STATE' "$MERGED"
+
+          echo "=== Package name ==="
+          grep -Eq 'package="com\\.sixvitesses\\.six_vitesses"' "$MERGED"
+          grep -q "package: name='com.sixvitesses.six_vitesses'" /tmp/apk-badging-deep.txt
+
+          echo "=== MainActivity ==="
+          grep -Eq 'android:name="com\\.sixvitesses\\.six_vitesses\\.MainActivity"' "$MERGED"
+
+          echo "=== Target SDK ==="
+          grep -Eq 'targetSdkVersion:[[:space:]]*[0-9]+' /tmp/apk-badging-deep.txt
+          TARGET_SDK="$(grep -oE 'targetSdkVersion:[[:space:]]*[0-9]+' /tmp/apk-badging-deep.txt | head -1 | grep -oE '[0-9]+        run: |
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-badging.txt
+          "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-permissions.txt
+          grep -q "package: name='com.sixvitesses.six_vitesses'" /tmp/apk-badging.txt
+          grep -q "android.permission.ACCESS_FINE_LOCATION" /tmp/apk-permissions.txt
+          grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
+          grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
+          grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
+          echo "APK identity and permissions verified."
+
+      - name: Verify APK signing certificate
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          test -x "$APKSIGNER"
+          echo "APK certificate:"
+          "$APKSIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+          echo "Expected certificate:"
+          keytool -list -v \
+            -keystore android/app/6-vitesses-release.jks \
+            -storepass "$RELEASE_STORE_PASSWORD" \
+            -alias "$RELEASE_KEY_ALIAS" \
+            | grep "SHA256:"
+
+      - name: Build signed AAB
+        env:
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/6-vitesses-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build appbundle --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: six-vitesses-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: six-vitesses-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Cleanup release keystore
+        if: always()
+        run: rm -f android/app/6-vitesses-release.jks
+)"
+          test -n "$TARGET_SDK"
+          echo "Final APK targetSdkVersion=$TARGET_SDK"
+
+          echo "=== Final APK permissions, explicitly checked ==="
+          grep -q 'android.permission.ACCESS_FINE_LOCATION' /tmp/apk-permissions-deep.txt
+          grep -q 'android.permission.ACCESS_COARSE_LOCATION' /tmp/apk-permissions-deep.txt
+
+          echo "=== All declared APK permissions ==="
+          cat /tmp/apk-permissions-deep.txt
+
+          echo "DEEP APK VERIFICATION PASSED"
+
       - name: Verify signed APK identity and permissions
         run: |
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
