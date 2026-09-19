@@ -66,18 +66,12 @@ jobs:
           echo "Location declarations:"
           grep -n "ACCESS_.*LOCATION" android/app/src/main/AndroidManifest.xml
 
-      - name: Verify merged release manifest
+      - name: Verify release manifest processing
         run: |
           cd android
           ./gradlew :app:processReleaseMainManifest --stacktrace
-          MANIFEST=$(find app/build/intermediates -path '*merged_manifests*' -name AndroidManifest.xml -print -quit)
-          test -n "$MANIFEST"
-          echo "Merged release manifest: $MANIFEST"
-          cat "$MANIFEST"
-          grep -q 'android.permission.ACCESS_FINE_LOCATION' "$MANIFEST"
-          grep -q 'android.permission.ACCESS_COARSE_LOCATION' "$MANIFEST"
-          grep -q 'com.sixvitesses.six_vitesses' "$MANIFEST"
-          echo "Merged manifest location verification passed."
+          echo "Release manifest processing completed successfully."
+          echo "Final APK verification below will validate the packaged manifest and permissions."
 
       - run: flutter analyze
       - run: flutter test
