@@ -249,7 +249,29 @@ int _estimatedGear(double speedKmh){if(speedKmh<2)return 0;if(speedKmh<15)return
 
 class _TrafficSignRail extends StatelessWidget {
   const _TrafficSignRail({required this.signs,required this.theme});final List<RelevantTrafficSign> signs;final HudTheme theme;
-  @override Widget build(BuildContext context)=>Container(width:82,padding:const EdgeInsets.symmetric(vertical:10,horizontal:8),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.48),borderRadius:BorderRadius.circular(16),border:Border.all(color:theme.secondary.withValues(alpha:.45))),child:Column(mainAxisSize:MainAxisSize.min,children:signs.map((sign)=>Padding(padding:const EdgeInsets.symmetric(vertical:7),child:_TrafficSignItem(sign:sign,theme:theme))).toList());
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 82,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .48),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.secondary.withValues(alpha: .45)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: signs
+            .map(
+              (sign) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: _TrafficSignItem(sign: sign, theme: theme),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
 }
 class _TrafficSignItem extends StatelessWidget {
   const _TrafficSignItem({required this.sign,required this.theme});final RelevantTrafficSign sign;final HudTheme theme;
