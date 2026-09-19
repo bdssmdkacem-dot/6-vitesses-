@@ -9,6 +9,7 @@ class MotionSample {
     required this.totalAcceleration,
     required this.timestamp,
     required this.axis,
+    required this.noiseConfidence,
   });
 
   final double longitudinalAcceleration;
@@ -16,6 +17,7 @@ class MotionSample {
   final double totalAcceleration;
   final DateTime timestamp;
   final int axis;
+  final double noiseConfidence;
 }
 
 class MotionSensorService {
@@ -84,6 +86,7 @@ class MotionSensorService {
         totalAcceleration: total,
         timestamp: DateTime.now(),
         axis: _axis,
+        noiseConfidence: noiseConfidence,
       ));
     });
   }
