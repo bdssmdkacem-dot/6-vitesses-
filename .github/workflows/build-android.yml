@@ -142,16 +142,18 @@ jobs:
 
           echo "=== AndroidManifest files produced by the release build ==="
           find android/app/build -type f -name AndroidManifest.xml -print | sort
-          MERGED="$(find android/app/build -type f -name AndroidManifest.xml -print | grep -E '/(release|merged_manifests)/' | grep -v '/src/main/' | head -1 || true)"
-          test -n "$MERGED"
-          echo "Using merged manifest: $MERGED"
-          cat "$MERGED"
-
-          echo "=== Required merged manifest permissions ==="
-          grep -q 'android.permission.ACCESS_FINE_LOCATION' "$MERGED"
-          grep -q 'android.permission.ACCESS_COARSE_LOCATION' "$MERGED"
-          grep -q 'android.permission.INTERNET' "$MERGED"
-          grep -q 'android.permission.ACCESS_NETWORK_STATE' "$MERGED"
+          MERGED="$(find android/app/build -type f -name AndroidManifest.xml -print | grep -E '/(merged_manifests|merged_manifest|packaged_manifests)/' | grep -E '/release/' | head -1 || true)"
+          if [ -n "$MERGED" ]; then
+            echo "Using merged release manifest: $MERGED"
+            cat "$MERGED"
+            echo "=== Required merged manifest permissions ==="
+            grep -q 'android.permission.ACCESS_FINE_LOCATION' "$MERGED"
+            grep -q 'android.permission.ACCESS_COARSE_LOCATION' "$MERGED"
+            grep -q 'android.permission.INTERNET' "$MERGED"
+            grep -q 'android.permission.ACCESS_NETWORK_STATE' "$MERGED"
+          else
+            echo "No standalone merged-manifest file matched the AGP output layout; final APK manifest will be the authoritative check."
+          fi
 
           echo "=== APK identity and location permissions ==="
           grep -q "package: name='com.sixvitesses.six_vitesses'" /tmp/apk-badging-deep.txt
