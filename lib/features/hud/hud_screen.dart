@@ -345,6 +345,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
 }
 String _sourceLabel(SensorSource source) => switch (source) {
   SensorSource.fused => 'FUSED',
+  SensorSource.obd => 'OBD',
   SensorSource.gps => 'GPS',
   SensorSource.imu => 'IMU',
   SensorSource.unavailable => 'NO SENSOR',
@@ -352,6 +353,7 @@ String _sourceLabel(SensorSource source) => switch (source) {
 
 IconData _sourceIcon(SensorSource source) => switch (source) {
   SensorSource.fused => Icons.merge_type,
+  SensorSource.obd => Icons.bluetooth,
   SensorSource.gps => Icons.gps_fixed,
   SensorSource.imu => Icons.sensors,
   SensorSource.unavailable => Icons.sensors_off,
@@ -359,6 +361,7 @@ IconData _sourceIcon(SensorSource source) => switch (source) {
 
 Color _sourceColor(SensorSource source, HudTheme theme) => switch (source) {
   SensorSource.fused => theme.accent,
+  SensorSource.obd => theme.accent,
   SensorSource.gps => theme.secondary,
   SensorSource.imu => Colors.orangeAccent,
   SensorSource.unavailable => Colors.redAccent,
