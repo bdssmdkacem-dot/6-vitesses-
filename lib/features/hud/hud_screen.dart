@@ -68,7 +68,9 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               previousRouteSegmentIndex: _navigationState?.routeSegmentIndex,
             );
             _navigationSession.update(_navigationState!, sample.timestamp);
-            if (_navigationSession.shouldReroute(sample.timestamp)) {
+            if (_navigationSession.status == NavigationSessionStatus.arrived) {
+              _navigationMessage = 'ARRIVED';
+            } else if (_navigationSession.shouldReroute(sample.timestamp)) {
               unawaited(_rerouteFromCurrentPosition(sample.position!, sample.timestamp));
             } else if (!_navigationState!.offRoute && _navigationSession.status == NavigationSessionStatus.navigating) {
               _navigationMessage = null;
