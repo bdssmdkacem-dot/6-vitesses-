@@ -27,6 +27,55 @@ class SpeedGauge extends StatelessWidget {
   }
 }
 
+class _DigitalGtSpeed extends StatelessWidget {
+  const _DigitalGtSpeed({required this.speed, required this.theme, required this.unitLabel, required this.maxWidth});
+  final double speed, maxWidth;
+  final HudTheme theme;
+  final String unitLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = math.min(430.0, maxWidth * .52);
+    final fontSize = math.min(126.0, math.max(82.0, width * .30));
+    return SizedBox(width: width, child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text('6 VITESSES', style: TextStyle(color: theme.secondary.withValues(alpha: .78), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 4)),
+      const SizedBox(height: 5),
+      Stack(alignment: Alignment.center, children: [
+        SizedBox(height: fontSize * .88, width: width, child: CustomPaint(
+          painter: _DigitalArcPainter(progress: (speed / 240.0).clamp(0.0, 1.0).toDouble(), theme: theme),
+        )),
+        Text(speed.toStringAsFixed(0), style: TextStyle(color: theme.accent, fontSize: fontSize, fontWeight: FontWeight.w900, height: .86, letterSpacing: -3, shadows: theme.glow ? [Shadow(color: theme.accent.withValues(alpha: .45), blurRadius: 18)] : const [])),
+      ]),
+      const SizedBox(height: 7),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 28, height: 2, color: theme.accent.withValues(alpha: .75)),
+        const SizedBox(width: 9),
+        Text(unitLabel.toUpperCase(), style: TextStyle(color: theme.secondary, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 2.5)),
+        const SizedBox(width: 9),
+        Container(width: 28, height: 2, color: theme.accent.withValues(alpha: .75)),
+      ]),
+    ]));
+  }
+}
+
+class _DigitalArcPainter extends CustomPainter {
+  const _DigitalArcPainter({required this.progress, required this.theme});
+  final double progress;
+  final HudTheme theme;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * .92);
+    final radius = math.min(size.width * .39, size.height * 1.45);
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final base = Paint()..style = PaintingStyle.stroke..strokeWidth = 3..strokeCap = StrokeCap.round..color = theme.secondary.withValues(alpha: .14);
+    final active = Paint()..style = PaintingStyle.stroke..strokeWidth = 4..strokeCap = StrokeCap.round..color = theme.accent.withValues(alpha: .8);
+    canvas.drawArc(rect, math.pi * 1.15, math.pi * .70, false, base);
+    canvas.drawArc(rect, math.pi * 1.15, math.pi * .70 * progress, false, active);
+  }
+  @override
+  bool shouldRepaint(covariant _DigitalArcPainter old) => old.progress != progress || old.theme != theme;
+}
+
 class _DigitalSpeed extends StatelessWidget {
   const _DigitalSpeed({required this.speed, required this.theme, required this.unitLabel, required this.maxWidth});
   final double speed, maxWidth;
