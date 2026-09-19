@@ -54,6 +54,7 @@ class DrivingSession extends ChangeNotifier {
   void addSample({
     required double speedKmh,
     required double acceleration,
+    double lateralAcceleration = 0,
     DateTime? timestamp,
   }) {
     if (!_active) return;
@@ -68,7 +69,7 @@ class DrivingSession extends ChangeNotifier {
     _lastSampleAt = now;
     _samples++;
     _speedSum += speedKmh;
-    _performance.addSample(speedKmh: speedKmh, longitudinalAcceleration: acceleration, lateralAcceleration: 0, timestamp: now);
+    _performance.addSample(speedKmh: speedKmh, longitudinalAcceleration: acceleration, lateralAcceleration: lateralAcceleration, timestamp: now);
     _performance.addSample(
       speedKmh: speedKmh,
       longitudinalAcceleration: acceleration,
