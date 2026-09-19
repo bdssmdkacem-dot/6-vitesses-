@@ -98,7 +98,6 @@ class Elm327Session implements ObdAdapter {
     );
   }
 
-  @override
   void dispose() {
     _pollTimer?.cancel();
     _pollTimer = null;
