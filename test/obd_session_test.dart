@@ -29,7 +29,7 @@ void main() {
     expect(telemetry.source, ObdTelemetrySource.obd);
     expect(telemetry.engineLoad, closeTo(50.196, .01));
     expect(telemetry.coolantTemperatureC, 70);
-    expect(telemetry.rpm, 6904);
+    expect(telemetry.rpm, 1726);
     expect(telemetry.vehicleSpeedKmh, 80);
     expect(telemetry.throttlePosition, closeTo(25.098, .01));
     obd.dispose();
