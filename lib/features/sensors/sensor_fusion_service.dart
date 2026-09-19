@@ -45,7 +45,6 @@ class SensorFusionService {
 
   GpsSample? _gps;
   MotionSample? _motion;
-  ObdTelemetry? _obd;
   double _fusedSpeed = 0;
   DateTime? _fusedSpeedAt;
   DateTime? _lastFusionAt;
@@ -65,7 +64,7 @@ class SensorFusionService {
   }
 
   SensorFusionSample updateObd(ObdTelemetry sample, [DateTime? timestamp]) {
-    _obd = sample;
+    // OBD-II is reserved for a future phase and is deliberately ignored.
     return _compose(timestamp ?? sample.timestamp ?? DateTime.now());
   }
 
