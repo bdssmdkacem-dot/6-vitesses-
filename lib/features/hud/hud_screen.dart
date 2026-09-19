@@ -7,6 +7,9 @@ import '../driving/drive_history.dart';
 import '../driving/drive_history_screen.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../driving/driving_session.dart';
+import '../driving/obd/elm327_session.dart';
+import '../driving/obd/flutter_classic_obd_transport.dart';
+import '../driving/obd/obd_telemetry.dart';
 import '../navigation/map_screen.dart';
 import '../navigation/navigation_engine.dart';
 import '../navigation/navigation_models.dart';
@@ -35,6 +38,7 @@ class HudScreen extends StatefulWidget {
 }
 class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   final _session=DrivingSession(),_gpsService=GpsSpeedService(),_motionService=MotionSensorService();
+  final _obdSession = Elm327Session(FlutterClassicObdTransport());
   final _fusionService = SensorFusionService();
   final _performanceMonitor = SensorPerformanceMonitor();
   final _navigationEngine = const NavigationEngine();
@@ -51,10 +55,10 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   String? _navigationMessage;
   OsrmRoute? _navigationRoute;
   NavigationState? _navigationState;
-  StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; Timer? _gpsWatchdog;
+  StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; StreamSubscription<ObdTelemetry>? _obdSub; Timer? _gpsWatchdog;
   double _speed=0,_longitudinalAccel=0,_totalAccel=0,_maxSpeed=0,_maxAccel=0,_maxBraking=0; double? _rpm;
   SensorFusionSample _fusion = SensorFusionSample(speedKmh:0,longitudinalAcceleration:0,lateralAcceleration:0,totalAcceleration:0,speedConfidence:0,accelerationConfidence:0,overallConfidence:0,source:SensorSource.unavailable,timestamp:DateTime.fromMillisecondsSinceEpoch(0));
-  bool _mirror=false,_ready=false,_gpsStale=true; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
+  bool _mirror=false,_ready=false,_gpsStale=true,_obdConnecting=false; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
   Future<void> _initializeHud() async {await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);if(!mounted)return;final permission=await _gpsService.requestLocationPermission();if(!mounted)return;if(permission==LocationPermission.denied){await _showLocationPermissionDenied();}else if(permission==LocationPermission.deniedForever){await _showLocationPermissionBlocked();}if(!mounted)return;await _enterHud();await _startSensors();}
@@ -62,7 +66,41 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   Future<void> _showLocationPermissionBlocked() async {await showDialog<void>(context:context,builder:(dialogContext)=>AlertDialog(title:const Text('LOCATION PERMISSION'),content:const Text('Location access is blocked. Open Android app settings and allow Location.'),actions:[TextButton(onPressed:() async {await Geolocator.openAppSettings();if(dialogContext.mounted)Navigator.pop(dialogContext);},child:const Text('APP SETTINGS')),FilledButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('CLOSE'))]));}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed)_enterHud();}
   Future<void> _enterHud()async{await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);await WakelockPlus.enable();}
+  Future<void> _syncObd() async {
+    if (!widget.settings.obdEnabled || widget.settings.obdAddress.trim().isEmpty) {
+      await _obdSession.disconnect();
+      return;
+    }
+    if (_obdSession.connected || _obdConnecting) return;
+    _obdConnecting = true;
+    try {
+      await _obdSession.connectToAddress(widget.settings.obdAddress.trim());
+      _obdSession.startTelemetryPolling();
+    } catch (_) {
+      await _obdSession.disconnect();
+    } finally {
+      _obdConnecting = false;
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _startSensors()async{
+    _obdSub ??= _obdSession.telemetry.listen((sample){
+      if (!mounted) return;
+      final fusion = _fusionService.updateObd(sample);
+      setState(() {
+        _fusion = fusion;
+        if (sample.rpm != null) _rpm = sample.rpm;
+        if (sample.vehicleSpeedKmh != null && _gpsStale && _session.active) {
+          _session.addSample(
+            speedKmh: fusion.speedKmh,
+            acceleration: fusion.longitudinalAcceleration,
+            lateralAcceleration: fusion.lateralAcceleration,
+            timestamp: fusion.timestamp,
+          );
+        }
+      });
+    });
     _gpsSub ??= _gpsService.samples.listen((sample){
       final stopwatch = Stopwatch()..start();
       if (!mounted) return;
@@ -128,7 +166,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       stopwatch.stop();
       _performanceMonitor.recordCallback(stopwatch.elapsed);
     });
-    _motionService.start();await _gpsService.start();
+    _motionService.start();await _gpsService.start();await _syncObd();
     _trafficTimer?.cancel();
     _trafficTimer = Timer.periodic(const Duration(seconds: 5), (_) { _refreshTrafficSigns(); });
     _gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:1),(_){if(!mounted)return;final stale=_gpsService.isStale;if(stale!=_gpsStale)setState(()=>_gpsStale=stale);if(stale)_gpsService.start();});if(mounted)setState(()=>_ready=true);
@@ -237,7 +275,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               SwitchListTile(title:const Text('Animations'),subtitle:const Text('Smooth speed, gauge and background motion'),value:widget.settings.animations,onChanged:(value) async {await widget.settings.setAnimations(value);setSheet((){});}),
               SwitchListTile(title:const Text('RPM indicator'),subtitle:Text(widget.settings.obdEnabled?'Waiting for OBD-II telemetry':'Ready for OBD-II'),value:widget.settings.showRpm,onChanged:(value) async {await widget.settings.setShowRpm(value);setSheet((){});}),
               SwitchListTile(title:const Text('Compact HUD'),subtitle:const Text('Reduce secondary information while driving'),value:widget.settings.compact,onChanged:(value) async {await widget.settings.setCompact(value);setSheet((){});}),
-              SwitchListTile(title:const Text('OBD-II ready'),subtitle:const Text('GPS remains the fallback source until a Bluetooth adapter is connected.'),value:widget.settings.obdEnabled,onChanged:(value) async {await widget.settings.setObdEnabled(value);setSheet((){});}),
+              SwitchListTile(title:const Text('OBD-II ready'),subtitle:Text(widget.settings.obdAddress.isEmpty?'GPS remains the fallback until an adapter address is configured.':(_obdSession.connected?'OBD-II connected':'OBD-II will connect when available.')),value:widget.settings.obdEnabled,onChanged:(value) async {await widget.settings.setObdEnabled(value);await _syncObd();setSheet((){});}),
+              TextFormField(initialValue:widget.settings.obdAddress,decoration:const InputDecoration(labelText:'OBD-II Bluetooth address',hintText:'Example: 00:1D:A5:68:98:8B'),onChanged:(value) async {await widget.settings.setObdAddress(value);}),
               SwitchListTile(title:const Text('Mirror HUD'),value:_mirror,onChanged:(value) async {await widget.settings.setMirror(value);if(!mounted)return;setState(()=>_mirror=value);setSheet((){});}),
               const SizedBox(height:8),
               FilledButton.icon(onPressed:(){_startDrive();Navigator.pop(context);},icon:const Icon(Icons.play_arrow),label:const Text('START DRIVE')),
@@ -341,7 +380,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       ]),
     );
   }
-  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_trafficService.dispose();_routeService.dispose();_navigationSession.stop();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_gpsWatchdog?.cancel();_trafficTimer?.cancel();_gpsSub?.cancel();_motionSub?.cancel();_gpsService.dispose();_motionService.dispose();_obdSub?.cancel();_obdSession.dispose();_trafficService.dispose();_routeService.dispose();_navigationSession.stop();_session.dispose();WakelockPlus.disable();SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);SystemChrome.setPreferredOrientations(DeviceOrientation.values);super.dispose();}
 }
 String _sourceLabel(SensorSource source) => switch (source) {
   SensorSource.fused => 'FUSED',
