@@ -9,6 +9,7 @@ class Elm327Session implements ObdAdapter {
   final ObdTransport transport;
   final _controller = StreamController<ObdTelemetry>.broadcast();
   bool _connected = false;
+  Timer? _pollTimer;
 
   @override
   bool get connected => _connected;
@@ -25,6 +26,8 @@ class Elm327Session implements ObdAdapter {
   @override
   Future<void> disconnect() async {
     _connected = false;
+    _pollTimer?.cancel();
+    _pollTimer = null;
     await transport.disconnect();
   }
 
@@ -60,6 +63,18 @@ class Elm327Session implements ObdAdapter {
     }
   }
 
+  void startTelemetryPolling({Duration interval = const Duration(milliseconds: 500)}) {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(interval, (_) async {
+      if (!_connected) return;
+      try {
+        _controller.add(await readStandardTelemetry());
+      } catch (_) {
+        _controller.add(const ObdTelemetry(source: ObdTelemetrySource.unavailable));
+      }
+    });
+  }
+
   Future<ObdTelemetry> readStandardTelemetry() async {
     if (!_connected) return const ObdTelemetry(source: ObdTelemetrySource.unavailable);
     final load = await readPid('0104');
@@ -79,6 +94,8 @@ class Elm327Session implements ObdAdapter {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
     _controller.close();
   }
 }
