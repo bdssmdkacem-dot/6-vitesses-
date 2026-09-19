@@ -1,0 +1,17 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android local/generated files
+android/local.properties
+android/.gradle/
+android/app/6-vitesses-release.jks
+
+# Signing material
+*.jks
+*.keystore
+key.properties
