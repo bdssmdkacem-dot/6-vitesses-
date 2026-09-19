@@ -46,6 +46,55 @@ jobs:
               if '<uses-permission' in line:
                   print(line.strip())
           PY
+      - name: Force native foreground location permission flow
+        run: |
+          mkdir -p android/app/src/main/kotlin/com/sixvitesses/six_vitesses
+          cat > android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt <<'KOTLIN'
+          package com.sixvitesses.six_vitesses
+
+          import android.Manifest
+          import android.content.pm.PackageManager
+          import android.os.Bundle
+          import io.flutter.embedding.android.FlutterActivity
+
+          class MainActivity : FlutterActivity() {
+              private val locationRequestCode = 6101
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  requestLocationPermissionIfNeeded()
+              }
+
+              private fun requestLocationPermissionIfNeeded() {
+                  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                      val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                      val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+                      if (fine != PackageManager.PERMISSION_GRANTED &&
+                          coarse != PackageManager.PERMISSION_GRANTED) {
+                          requestPermissions(
+                              arrayOf(
+                                  Manifest.permission.ACCESS_FINE_LOCATION,
+                                  Manifest.permission.ACCESS_COARSE_LOCATION
+                              ),
+                              locationRequestCode
+                          )
+                      }
+                  }
+              }
+          }
+          KOTLIN
+
+      - name: Verify generated Android manifest before build
+        run: |
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
+          echo "Package/application identity:"
+          grep -R "applicationId\|namespace" android/app/build.gradle* android/app/build.gradle.kts 2>/dev/null || true
+          echo "Declared location permissions:"
+          grep -n "ACCESS_.*LOCATION" android/app/src/main/AndroidManifest.xml || true
+          echo "Generated manifest:"
+          cat android/app/src/main/AndroidManifest.xml
+
       - run: flutter pub get
       - name: Generate launcher icon
         run: dart run flutter_launcher_icons
@@ -63,6 +112,9 @@ jobs:
           grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
           grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
+          echo "APK package/permissions:"
+          "$AAPT" dump badging build/app/outputs/flutter-apk/app-release.apk | head -20
+          echo "APK permission verification completed."
       - name: Build AAB
         run: flutter build appbundle --release
       - uses: actions/upload-artifact@v4
