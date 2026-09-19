@@ -95,6 +95,7 @@ class Elm327Session implements ObdAdapter {
       rpm: rpmRaw == null ? null : rpmRaw / 4,
       vehicleSpeedKmh: speed,
       throttlePosition: throttle == null ? null : throttle * 100 / 255,
+      timestamp: DateTime.now(),
     );
   }
 
