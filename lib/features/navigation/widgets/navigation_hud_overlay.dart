@@ -4,13 +4,14 @@ import '../traffic_sign_engine.dart';
 import '../../hud/models/hud_theme.dart';
 
 class NavigationHudOverlay extends StatelessWidget {
-  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message, required this.style});
+  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message, required this.style, this.compact = false, this.showEta = true, this.showRoadName = true});
   final NavigationState state;
   final Color accent;
   final Color secondary;
   final RelevantTrafficSign? trafficSign;
   final String? message;
   final HudGaugeStyle style;
+  final bool compact, showEta, showRoadName;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,7 @@ class NavigationHudOverlay extends StatelessWidget {
             padding: const EdgeInsets.only(right: 10, left: 8),
             child: Center(
               child: Container(
-          constraints: const BoxConstraints(minWidth: 230, maxWidth: 430),
+          constraints: BoxConstraints(minWidth: compact ? 180 : 230, maxWidth: compact ? 300 : 430),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: .58), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: .65))),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -35,19 +36,19 @@ class NavigationHudOverlay extends StatelessWidget {
             Flexible(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (message != null) Text(message!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.w900)),
               if (message != null) const SizedBox(height: 2),
-              Text(_instruction(maneuver), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent, fontSize: 17, fontWeight: FontWeight.w900)),
+              Text(_instruction(maneuver), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent, fontSize: compact ? 14 : 17, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
               Text(_distance(state.nextManeuverDistanceMeters), style: TextStyle(color: secondary, fontSize: 12, fontWeight: FontWeight.w700)),
-              if (maneuver.name != null && maneuver.name!.isNotEmpty) Text(maneuver.name!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12)),
+              if (showRoadName && maneuver.name != null && maneuver.name!.isNotEmpty) Text(maneuver.name!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12)),
             ])),
             if (trafficSign != null) ...[
               const SizedBox(width: 10),
               _SignBadge(sign: trafficSign!, accent: accent),
             ],
-            const SizedBox(width: 12),
-            Column(mainAxisSize: MainAxisSize.min, children: [
+            if (!compact) const SizedBox(width: 12),
+            if (!compact) Column(mainAxisSize: MainAxisSize.min, children: [
               Text(_distance(state.remainingMeters), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-              Text('${(state.remainingSeconds / 60).ceil()} min', style: TextStyle(color: secondary, fontSize: 10)),
+              if (showEta) Text('${(state.remainingSeconds / 60).ceil()} min', style: TextStyle(color: secondary, fontSize: 10)),
             ]),
           ]),
         ),
@@ -98,7 +99,7 @@ class _ManeuverIcon extends StatelessWidget {
       case NavigationManeuverType.arrive: icon = Icons.flag;
       default: icon = Icons.straight;
     }
-    return Icon(icon, color: color, size: 42);
+    return Icon(icon, color: color, size: compact ? 34 : 42);
   }
 }
 
