@@ -8,6 +8,7 @@ class ObdTelemetry {
     this.rpm,
     this.vehicleSpeedKmh,
     this.throttlePosition,
+    this.timestamp,
   });
 
   final ObdTelemetrySource source;
@@ -16,6 +17,7 @@ class ObdTelemetry {
   final double? rpm;
   final double? vehicleSpeedKmh;
   final double? throttlePosition;
+  final DateTime? timestamp;
 
   bool get available => source == ObdTelemetrySource.obd;
 }
