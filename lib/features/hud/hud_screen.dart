@@ -208,7 +208,17 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         Positioned(right:18,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
         if(!compact || (gtEnabled&&gtSpec.showGForce))Positioned(left:18,bottom:14,child:Row(children:[_Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),if(_session.active&&(!gtEnabled||gtSpec.showTrip))...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')]])),
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
-        if(gtEnabled&&gtSpec.showMap&&navigationActive)Positioned(left:110,top:42,child:GtRouteMap(route:_navigationState!.route,position:_lastPosition,theme:_theme,nextManeuver:_navigationState!.nextManeuver)),
+        if (gtEnabled && gtSpec.showMap && navigationActive)
+          Positioned(
+            left: 110,
+            top: 42,
+            child: GtRouteMap(
+              route: _navigationState!.route,
+              position: _lastPosition,
+              theme: _theme,
+              nextManeuver: _navigationState!.nextManeuver,
+            ),
+          ),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
       ])),
     ]);
