@@ -62,23 +62,33 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
   Future<void> _initializeHud() async {
-    // Keep the Activity in its normal resumed state while Android displays the
-    // runtime permission dialog. Immersive mode/orientation is applied only
-    // after the permission decision, avoiding a race on Android 12/13+.
-    final permission = await _gpsService.requestLocationPermission();
+    // MainActivity owns the first Android runtime permission request. Do not
+    // call Geolocator.requestPermission() here at the same time: two permission
+    // requesters can race on Android and leave the system dialog unshown.
+    // Wait for the native request to settle, then read the resulting state.
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
+
+    var permission = await _gpsService.refreshPermission();
+    if (!mounted) return;
+
+    if (permission == LocationPermission.denied) {
+      await _showLocationPermissionDenied();
+      if (!mounted) return;
+      permission = await _gpsService.refreshPermission();
+    }
+
     if (permission == LocationPermission.deniedForever) {
       await _showLocationPermissionBlocked();
       if (!mounted) return;
-    } else if (permission == LocationPermission.denied) {
-      await _showLocationPermissionDenied();
-      if (!mounted) return;
-      final retry = await _gpsService.refreshPermission();
-      if (retry != LocationPermission.whileInUse &&
-          retry != LocationPermission.always) {
-        return;
-      }
+      permission = await _gpsService.refreshPermission();
     }
+
+    if (permission != LocationPermission.whileInUse &&
+        permission != LocationPermission.always) {
+      return;
+    }
+
     await _enterHud();
     if (!mounted) return;
     await _startSensors();
