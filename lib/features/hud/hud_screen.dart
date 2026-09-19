@@ -18,6 +18,8 @@ import '../navigation/widgets/navigation_hud_overlay.dart';
 import '../settings/app_settings.dart';
 import '../sensors/gps_speed_service.dart';
 import '../sensors/motion_sensor_service.dart';
+import '../sensors/sensor_fusion_service.dart';
+import '../sensors/sensor_performance_monitor.dart';
 import 'models/hud_theme.dart';
 import 'widgets/acceleration_bar.dart';
 import 'widgets/gear_indicator.dart';
@@ -33,6 +35,8 @@ class HudScreen extends StatefulWidget {
 }
 class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   final _session=DrivingSession(),_gpsService=GpsSpeedService(),_motionService=MotionSensorService();
+  final _fusionService = SensorFusionService();
+  final _performanceMonitor = SensorPerformanceMonitor();
   final _navigationEngine = const NavigationEngine();
   final _navigationSession = NavigationSessionController();
   final _routeService = OsrmRouteService();
@@ -49,6 +53,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   NavigationState? _navigationState;
   StreamSubscription<GpsSample>? _gpsSub; StreamSubscription<MotionSample>? _motionSub; Timer? _gpsWatchdog;
   double _speed=0,_longitudinalAccel=0,_totalAccel=0,_maxSpeed=0,_maxAccel=0,_maxBraking=0; double? _rpm;
+  SensorFusionSample _fusion = const SensorFusionSample(speedKmh:0,longitudinalAcceleration:0,lateralAcceleration:0,totalAcceleration:0,speedConfidence:0,accelerationConfidence:0,overallConfidence:0,source:SensorSource.unavailable,timestamp:DateTime.fromMillisecondsSinceEpoch(0));
   bool _mirror=false,_ready=false,_gpsStale=true; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
@@ -58,12 +63,26 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed)_enterHud();}
   Future<void> _enterHud()async{await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);await WakelockPlus.enable();}
   Future<void> _startSensors()async{
-    _gpsSub ??= _gpsService.samples.listen((sample){if(!mounted)return;if(!sample.isStale){_motionService.updateVehicleSpeed(sample.speedKmh,sample.timestamp);}setState((){if(!sample.isStale){
-          _speed=sample.speedKmh;_longitudinalAccel=sample.longitudinalAcceleration;
+    _gpsSub ??= _gpsService.samples.listen((sample){
+      final stopwatch = Stopwatch()..start();
+      if (!mounted) return;
+      final fusion = _fusionService.updateGps(sample);
+      if (!sample.isStale) {
+        _motionService.updateVehicleSpeed(fusion.speedKmh, sample.timestamp);
+      }
+      setState(() {
+        _fusion = fusion;
+        if (!sample.isStale) {
+          _speed = fusion.speedKmh;
+          _longitudinalAccel = fusion.longitudinalAcceleration;
           _lastPosition = sample.position;
           _lastHeading = sample.headingDegrees;
           if (_navigationRoute != null && sample.position != null) {
-            _navigationState = _navigationEngine.update(route: _navigationRoute!, position: sample.position!, speedKmh: sample.speedKmh, headingDegrees: sample.headingDegrees,
+            _navigationState = _navigationEngine.update(
+              route: _navigationRoute!,
+              position: sample.position!,
+              speedKmh: fusion.speedKmh,
+              headingDegrees: sample.headingDegrees,
               previousRouteProgressMeters: _navigationState?.routeProgressMeters,
               previousRouteSegmentIndex: _navigationState?.routeSegmentIndex,
             );
@@ -72,11 +91,42 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               _navigationMessage = 'ARRIVED';
             } else if (_navigationSession.shouldReroute(sample.timestamp)) {
               unawaited(_rerouteFromCurrentPosition(sample.position!, sample.timestamp));
-            } else if (!_navigationState!.offRoute && _navigationSession.status == NavigationSessionStatus.navigating) {
+            } else if (!_navigationState!.offRoute &&
+                _navigationSession.status == NavigationSessionStatus.navigating) {
               _navigationMessage = null;
             }
-          }if(_speed>_maxSpeed)_maxSpeed=_speed;if(_longitudinalAccel>_maxAccel)_maxAccel=_longitudinalAccel;if(_longitudinalAccel<_maxBraking)_maxBraking=_longitudinalAccel;}_gpsStale=sample.isStale;});if(_session.active&&!sample.isStale)_session.addSample(speedKmh:sample.speedKmh,acceleration:sample.longitudinalAcceleration,timestamp:sample.timestamp);});
-    _motionSub ??= _motionService.samples.listen((sample){if(!mounted)return;setState((){_longitudinalAccel=sample.longitudinalAcceleration;_totalAccel=sample.totalAcceleration;if(sample.longitudinalAcceleration>_maxAccel)_maxAccel=sample.longitudinalAcceleration;if(sample.longitudinalAcceleration<_maxBraking)_maxBraking=sample.longitudinalAcceleration;});});
+          }
+          if (_speed > _maxSpeed) _maxSpeed = _speed;
+          if (_longitudinalAccel > _maxAccel) _maxAccel = _longitudinalAccel;
+          if (_longitudinalAccel < _maxBraking) _maxBraking = _longitudinalAccel;
+        }
+        _gpsStale = sample.isStale;
+      });
+      if (_session.active && !sample.isStale) {
+        _session.addSample(
+          speedKmh: fusion.speedKmh,
+          acceleration: fusion.longitudinalAcceleration,
+          timestamp: sample.timestamp,
+        );
+      }
+      stopwatch.stop();
+      _performanceMonitor.recordCallback(stopwatch.elapsed);
+    });
+    _motionSub ??= _motionService.samples.listen((sample){
+      final stopwatch = Stopwatch()..start();
+      if (!mounted) return;
+      final fusion = _fusionService.updateMotion(sample);
+      setState(() {
+        _fusion = fusion;
+        _speed = fusion.speedKmh;
+        _longitudinalAccel = fusion.longitudinalAcceleration;
+        _totalAccel = fusion.totalAcceleration;
+        if (fusion.longitudinalAcceleration > _maxAccel) _maxAccel = fusion.longitudinalAcceleration;
+        if (fusion.longitudinalAcceleration < _maxBraking) _maxBraking = fusion.longitudinalAcceleration;
+      });
+      stopwatch.stop();
+      _performanceMonitor.recordCallback(stopwatch.elapsed);
+    });
     _motionService.start();await _gpsService.start();
     _trafficTimer?.cancel();
     _trafficTimer = Timer.periodic(const Duration(seconds: 5), (_) { _refreshTrafficSigns(); });
@@ -229,6 +279,12 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(_relevantTrafficSigns.isNotEmpty)Positioned(left:14,top:0,bottom:0,child:Center(child:_TrafficSignRail(signs:gtEnabled&&!gtSpec.showFullSignRail?_relevantTrafficSigns.take(1).toList(growable:false):_relevantTrafficSigns,theme:_theme))),
         if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,message:_navigationMessage,style:_style,compact:gtEnabled&&gtSpec.compactNavigation,showEta:!gtEnabled||gtSpec.showEta,showRoadName:!gtEnabled||gtSpec.showRoadName),
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
+        Positioned(left:18,top:34,child:Row(children:[
+          Icon(_sourceIcon(_fusion.source),size:13,color:_sourceColor(_fusion.source,_theme)),
+          const SizedBox(width:5),
+          Text('\${_sourceLabel(_fusion.source)} \${(_fusion.overallConfidence*100).round()}%',
+            style:TextStyle(color:_sourceColor(_fusion.source,_theme),fontSize:9,fontWeight:FontWeight.w800)),
+        ])),
         Positioned(right:120,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
         if(!compact || (gtEnabled&&gtSpec.showGForce))Positioned(left:18,bottom:14,child:Row(children:[_Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),if(_session.active&&(!gtEnabled||gtSpec.showTrip))...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')]])),
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
