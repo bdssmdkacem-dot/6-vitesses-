@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -11,11 +12,18 @@ class OsmTrafficService {
 
   final String endpoint;
   final http.Client _client;
+  List<TrafficSign>? _cache;
+  DateTime? _cacheAt;
+  String? _cacheKey;
 
   Future<List<TrafficSign>> nearby({
     required LatLng center,
     double radiusMeters = 1000,
   }) async {
+    final key = '${center.latitude.toStringAsFixed(3)}:${center.longitude.toStringAsFixed(3)}:$radiusMeters';
+    final now = DateTime.now();
+    if (_cache != null && _cacheAt != null && _cacheKey == key &&
+        now.difference(_cacheAt!) < const Duration(seconds: 30)) return _cache!;
     final lat = center.latitude.toStringAsFixed(6);
     final lon = center.longitude.toStringAsFixed(6);
     final radius = radiusMeters.round();
@@ -33,14 +41,22 @@ class OsmTrafficService {
 );
 out center tags;
 ''';
-    final response = await _client.post(
-      Uri.parse(endpoint),
-      headers: const {'Accept': 'application/json'},
-      body: {'data': query},
-    ).timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) {
-      throw Exception('Overpass HTTP ${response.statusCode}');
-    }
+    http.Response? response;
+    Object? lastError;
+    try {
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          response = await _client.post(Uri.parse(endpoint), headers: const {'Accept': 'application/json'}, body: {'data': query}).timeout(const Duration(seconds: 15));
+          if (response.statusCode == 200) break;
+          if (response.statusCode < 500) throw Exception('Overpass HTTP ${response.statusCode}');
+          lastError = Exception('Overpass HTTP ${response.statusCode}');
+        } on TimeoutException catch (error) {
+          lastError = error;
+        }
+        if (attempt < 2) await Future<void>.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+      }
+      if (response == null || response.statusCode != 200) throw lastError ?? Exception('Overpass request failed');
+
     final root = jsonDecode(response.body) as Map<String, dynamic>;
     final elements = root['elements'] as List<dynamic>? ?? const [];
     final result = <TrafficSign>[];
@@ -69,7 +85,14 @@ out center tags;
         directionDegrees: _direction(tags['direction']?.toString()),
       ));
     }
-    return result;
+    _cache = List<TrafficSign>.unmodifiable(result);
+    _cacheAt = now;
+    _cacheKey = key;
+    return _cache!;
+    } catch (_) {
+      if (_cache != null && _cacheAt != null && now.difference(_cacheAt!) < const Duration(minutes: 2)) return _cache!;
+      rethrow;
+    }
   }
 
   LatLng? _location(Map<String, dynamic> element) {
