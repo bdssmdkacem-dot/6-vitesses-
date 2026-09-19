@@ -20,7 +20,7 @@ class NavigationHudOverlay extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: FractionallySizedBox(
-          widthFactor: style == HudGaugeStyle.digital ? .38 : .34,
+          widthFactor: style == HudGaugeStyle.digital || style == HudGaugeStyle.digitalGt ? .38 : .34,
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.only(right: 10, left: 8),
