@@ -72,13 +72,11 @@ class SensorFusionService {
   }
 
   bool obdIsFresh(DateTime now) {
-    // OBD is intentionally not part of the active fusion path yet.
+    // OBD-II is intentionally disabled in the active fusion path.
     // GPS + IMU are the only authoritative runtime sources for now.
-    final timestamp = obd?.timestamp;
-    return obd != null &&
-        obd.available &&
-        timestamp != null &&
-        now.difference(timestamp).abs() <= obdFreshness;
+    // Keep the hook for the future OBD phase without allowing OBD
+    // telemetry to influence speed, acceleration, confidence, or source.
+    return false;
   }
 
   SensorFusionSample current([DateTime? now]) =>
