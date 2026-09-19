@@ -1,14 +1,17 @@
 name: Build 6 Vitesses Android
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +27,31 @@ jobs:
           test -n "$FLUTTER_ROOT"
           printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
           echo "Generated android/local.properties for GitHub Actions."
-          cat android/local.properties
+
+      - name: Restore release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/6-vitesses-release.jks
+          test -s android/app/6-vitesses-release.jks
+          chmod 600 android/app/6-vitesses-release.jks
+          echo "Release keystore restored."
+
+      - name: Verify release signing configuration
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          test -n "$RELEASE_STORE_PASSWORD"
+          test -n "$RELEASE_KEY_ALIAS"
+          test -n "$RELEASE_KEY_PASSWORD"
+          keytool -list -v \
+            -keystore android/app/6-vitesses-release.jks \
+            -storepass "$RELEASE_STORE_PASSWORD" \
+            -alias "$RELEASE_KEY_ALIAS" \
+            | grep -E "Alias name:|SHA256:"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -67,19 +94,31 @@ jobs:
           grep -n "ACCESS_.*LOCATION" android/app/src/main/AndroidManifest.xml
 
       - name: Verify release manifest processing
+        env:
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/6-vitesses-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           ./gradlew :app:processReleaseMainManifest --stacktrace
           echo "Release manifest processing completed successfully."
-          echo "Final APK verification below will validate the packaged manifest and permissions."
 
-      - run: flutter analyze
-      - run: flutter test
+      - name: Analyze
+        run: flutter analyze
 
-      - name: Build APK
+      - name: Test
+        run: flutter test
+
+      - name: Build signed APK
+        env:
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/6-vitesses-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release
 
-      - name: Verify APK identity and permissions
+      - name: Verify signed APK identity and permissions
         run: |
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
           "$AAPT" dump badging build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-badging.txt
@@ -89,9 +128,27 @@ jobs:
           grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
           grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
-          echo "APK identity and location permissions verified."
+          echo "APK identity and permissions verified."
 
-      - name: Build AAB
+      - name: Verify APK signing certificate
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep "SHA256:"
+          echo "Expected certificate:"
+          keytool -list -v \
+            -keystore android/app/6-vitesses-release.jks \
+            -storepass "$RELEASE_STORE_PASSWORD" \
+            -alias "$RELEASE_KEY_ALIAS" \
+            | grep "SHA256:"
+
+      - name: Build signed AAB
+        env:
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/6-vitesses-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build appbundle --release
 
       - uses: actions/upload-artifact@v4
@@ -103,3 +160,7 @@ jobs:
         with:
           name: six-vitesses-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Cleanup release keystore
+        if: always()
+        run: rm -f android/app/6-vitesses-release.jks
