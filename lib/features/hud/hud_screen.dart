@@ -282,7 +282,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         Positioned(left:18,top:34,child:Row(children:[
           Icon(_sourceIcon(_fusion.source),size:13,color:_sourceColor(_fusion.source,_theme)),
           const SizedBox(width:5),
-          Text('\${_sourceLabel(_fusion.source)} \${(_fusion.overallConfidence*100).round()}%',
+          Text('${_sourceLabel(_fusion.source)} ${(_fusion.overallConfidence*100).round()}%',
             style:TextStyle(color:_sourceColor(_fusion.source,_theme),fontSize:9,fontWeight:FontWeight.w800)),
         ])),
         Positioned(right:120,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
