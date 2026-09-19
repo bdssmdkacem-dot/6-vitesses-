@@ -47,6 +47,10 @@ jobs:
                   print(line.strip())
           PY
       - run: flutter pub get
+      - name: Generate launcher icon
+        run: dart run flutter_launcher_icons
+      - name: Generate native splash
+        run: dart run flutter_native_splash:create
       - run: flutter analyze
       - run: flutter test
       - name: Build APK
