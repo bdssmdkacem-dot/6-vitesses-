@@ -62,21 +62,88 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
   Future<void> _initializeHud() async {
-    // Request location before awaiting orientation changes so Android can show
-    // the permission dialog immediately, matching the previously working flow.
-    unawaited(_enterHud());
+    // Keep the Activity in its normal resumed state while Android displays the
+    // runtime permission dialog. Immersive mode/orientation is applied only
+    // after the permission decision, avoiding a race on Android 12/13+.
     final permission = await _gpsService.requestLocationPermission();
     if (!mounted) return;
-    if (permission == LocationPermission.denied) {
-      await _showLocationPermissionDenied();
-    } else if (permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.deniedForever) {
       await _showLocationPermissionBlocked();
+      if (!mounted) return;
+    } else if (permission == LocationPermission.denied) {
+      await _showLocationPermissionDenied();
+      if (!mounted) return;
+      final retry = await _gpsService.refreshPermission();
+      if (retry != LocationPermission.whileInUse &&
+          retry != LocationPermission.always) {
+        return;
+      }
     }
+    await _enterHud();
     if (!mounted) return;
     await _startSensors();
   }
-  Future<void> _showLocationPermissionDenied() async {await showDialog<void>(context:context,barrierDismissible:false,builder:(dialogContext)=>AlertDialog(title:const Text('LOCATION REQUIRED'),content:const Text('Location permission is required for GPS speed and driving measurements.'),actions:[TextButton(onPressed:() async {final result=await _gpsService.requestLocationPermission();if(!dialogContext.mounted)return;if(result==LocationPermission.deniedForever){Navigator.pop(dialogContext);await _showLocationPermissionBlocked();}else if(result==LocationPermission.whileInUse||result==LocationPermission.always){Navigator.pop(dialogContext);await _gpsService.start();}else {await _gpsService.refreshPermission();}},child:const Text('RE-ALLOW LOCATION')),FilledButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('CONTINUE'))]));}
-  Future<void> _showLocationPermissionBlocked() async {await showDialog<void>(context:context,builder:(dialogContext)=>AlertDialog(title:const Text('LOCATION PERMISSION'),content:const Text('Location access is blocked. Open Android app settings and allow Location.'),actions:[TextButton(onPressed:() async {await Geolocator.openAppSettings();if(dialogContext.mounted)Navigator.pop(dialogContext);},child:const Text('APP SETTINGS')),FilledButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('CLOSE'))]));}
+
+  Future<void> _showLocationPermissionDenied() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('LOCATION REQUIRED'),
+        content: const Text(
+          'Allow Location for 6 Vitesses to measure GPS speed and driving data.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final result = await _gpsService.requestLocationPermission();
+              if (!dialogContext.mounted) return;
+              if (result == LocationPermission.whileInUse ||
+                  result == LocationPermission.always) {
+                Navigator.pop(dialogContext);
+              } else if (result == LocationPermission.deniedForever) {
+                Navigator.pop(dialogContext);
+                await _showLocationPermissionBlocked();
+              }
+            },
+            child: const Text('ALLOW LOCATION'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('CLOSE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showLocationPermissionBlocked() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('LOCATION PERMISSION BLOCKED'),
+        content: const Text(
+          'Android has blocked the Location permission for 6 Vitesses. '
+          'Open App Settings, select Permissions > Location, then choose '
+          'Allow while using the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Geolocator.openAppSettings();
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            child: const Text('APP SETTINGS'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('CLOSE'),
+          ),
+        ],
+      ),
+    );
+  }
   @override void didChangeAppLifecycleState(AppLifecycleState state){
     if(state==AppLifecycleState.resumed){
       _enterHud();
@@ -86,16 +153,24 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   Future<void> _recoverLocationPermission() async {
     final permission = await _gpsService.refreshPermission();
     if (!mounted) return;
-    if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
       await _gpsService.start();
       return;
     }
     if (permission == LocationPermission.denied) {
       final requested = await _gpsService.requestLocationPermission();
       if (!mounted) return;
-      if (requested == LocationPermission.whileInUse || requested == LocationPermission.always) {
+      if (requested == LocationPermission.whileInUse ||
+          requested == LocationPermission.always) {
         await _gpsService.start();
+      } else if (requested == LocationPermission.deniedForever) {
+        await _showLocationPermissionBlocked();
       }
+      return;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      await _showLocationPermissionBlocked();
     }
   }
   Future<void> _enterHud()async{await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);await WakelockPlus.enable();}
