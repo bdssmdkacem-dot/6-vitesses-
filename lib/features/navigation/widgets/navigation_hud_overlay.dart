@@ -27,10 +27,10 @@ class NavigationHudOverlay extends StatelessWidget {
             padding: const EdgeInsets.only(right: 10, left: 8),
             child: Center(
               child: Container(
-          constraints: BoxConstraints(minWidth: compact ? 180 : 230, maxWidth: compact ? 300 : 430),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          constraints: BoxConstraints(minWidth: 0, maxWidth: compact ? 300 : 360),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 8 : 10),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: .58), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: .65))),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
+          child: Row(mainAxisSize: MainAxisSize.max, children: [
             _ManeuverIcon(type: maneuver.type, color: accent),
             const SizedBox(width: 12),
             Flexible(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -99,7 +99,7 @@ class _ManeuverIcon extends StatelessWidget {
       case NavigationManeuverType.arrive: icon = Icons.flag;
       default: icon = Icons.straight;
     }
-    return Icon(icon, color: color, size: 42);
+    return Icon(icon, color: color, size: compact ? 34 : 38);
   }
 }
 
