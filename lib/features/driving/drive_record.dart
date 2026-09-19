@@ -31,8 +31,8 @@ class DriveRecord {
     'maxSpeedKmh': maxSpeedKmh,
     'maxAcceleration': maxAcceleration,
     'maxBraking': maxBraking,
-    'zeroToSixtySeconds': zeroToSixtySeconds,
-    'zeroToHundredSeconds': zeroToHundredSeconds,
+    if (zeroToSixtySeconds != null) 'zeroToSixtySeconds': zeroToSixtySeconds!,
+    if (zeroToHundredSeconds != null) 'zeroToHundredSeconds': zeroToHundredSeconds!,
     'maxLateralG': maxLateralG,
   };
 
