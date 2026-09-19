@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'drive_record.dart';
+import 'performance_metrics.dart';
 
 class DrivingSession extends ChangeNotifier {
   bool _active = false;
@@ -14,6 +15,7 @@ class DrivingSession extends ChangeNotifier {
   double _maxBraking = 0;
   int _samples = 0;
   Timer? _timer;
+  final PerformanceMetrics _performance = PerformanceMetrics();
 
   bool get active => _active;
   Duration get elapsed => _elapsed;
@@ -22,6 +24,7 @@ class DrivingSession extends ChangeNotifier {
   double get maxSpeed => _maxSpeed;
   double get maxAcceleration => _maxAcceleration;
   double get maxBraking => _maxBraking;
+  PerformanceSnapshot get performance => _performance.snapshot(DateTime.now());
 
   void start() {
     _timer?.cancel();
@@ -35,6 +38,7 @@ class DrivingSession extends ChangeNotifier {
     _maxSpeed = 0;
     _maxAcceleration = 0;
     _maxBraking = 0;
+    _performance.reset(_startedAt!);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_startedAt != null) {
         _elapsed = DateTime.now().difference(_startedAt!);
@@ -61,6 +65,12 @@ class DrivingSession extends ChangeNotifier {
     _lastSampleAt = now;
     _samples++;
     _speedSum += speedKmh;
+    _performance.addSample(
+      speedKmh: speedKmh,
+      longitudinalAcceleration: acceleration,
+      lateralAcceleration: 0,
+      timestamp: now,
+    );
     if (speedKmh > _maxSpeed) _maxSpeed = speedKmh;
     if (acceleration > _maxAcceleration) _maxAcceleration = acceleration;
     if (acceleration < _maxBraking) _maxBraking = acceleration;
@@ -81,6 +91,9 @@ class DrivingSession extends ChangeNotifier {
       maxSpeedKmh: _maxSpeed,
       maxAcceleration: _maxAcceleration,
       maxBraking: _maxBraking,
+      zeroToSixtySeconds: _performance.snapshot(DateTime.now()).zeroToSixtySeconds,
+      zeroToHundredSeconds: _performance.snapshot(DateTime.now()).zeroToHundredSeconds,
+      maxLateralG: _performance.snapshot(DateTime.now()).maxLateralG,
     );
     notifyListeners();
     return record;
