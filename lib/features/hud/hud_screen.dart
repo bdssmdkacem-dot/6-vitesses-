@@ -61,14 +61,40 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   bool _mirror=false,_ready=false,_gpsStale=true,_obdConnecting=false; HudTheme _theme=HudTheme.midnight; HudGaugeStyle _style=HudGaugeStyle.digital;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);WidgetsBinding.instance.addPostFrameCallback((_) {if(mounted){_initializeHud();}});}
+  Future<bool> _requestNativeLocationPermission() async {
+    try {
+      final granted = await const MethodChannel('six_vitesses/permissions')
+          .invokeMethod<bool>('requestLocationPermission');
+      return granted ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
   Future<void> _initializeHud() async {
     if (!mounted) return;
 
     // Keep the Activity in its normal resumed state while Android displays the
     // runtime permission dialog. Apply immersive mode and landscape only after
     // the permission decision so they cannot race the system permission UI.
-    var permission = await _gpsService.requestLocationPermission();
+    var permission = await _gpsService.refreshPermission();
     if (!mounted) return;
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      // Use the Activity's runtime permission API from a post-frame Flutter
+      // callback. This avoids the startup/onCreate race while keeping
+      // geolocator as the source of truth for the resulting permission state.
+      await _requestNativeLocationPermission();
+      if (!mounted) return;
+      permission = await _gpsService.refreshPermission();
+
+      // Keep geolocator as a fallback for platforms/configurations where the
+      // native channel cannot issue the request.
+      if (permission == LocationPermission.denied) {
+        permission = await _gpsService.requestLocationPermission();
+        if (!mounted) return;
+      }
+    }
 
     if (permission == LocationPermission.deniedForever) {
       await _showLocationPermissionBlocked();
