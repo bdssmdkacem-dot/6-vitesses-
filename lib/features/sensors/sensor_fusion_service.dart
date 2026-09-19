@@ -107,12 +107,14 @@ class SensorFusionService {
     var source = SensorSource.unavailable;
     var speedConfidence = 0.0;
 
-    // OBD is optional. When fresh, its vehicle speed is preferred because it
-    // comes directly from the vehicle ECU. GPS remains the fallback.
-    if (obdFresh) {
-      speed = obd.vehicleSpeedKmh.clamp(0.0, 400.0).toDouble();
+    // OBD is optional. When fresh and complete, use ECU speed as the
+    // preferred vehicle-speed source; GPS remains the normal fallback.
+    final obdSpeed = obd?.vehicleSpeedKmh;
+    final obdTimestamp = obd?.timestamp;
+    if (obdFresh && obdSpeed != null && obdTimestamp != null) {
+      speed = obdSpeed.clamp(0.0, 400.0).toDouble();
       _fusedSpeed = speed;
-      _fusedSpeedAt = obd.timestamp;
+      _fusedSpeedAt = obdTimestamp;
       speedConfidence = 0.98;
       source = gpsFresh || imuFresh ? SensorSource.fused : SensorSource.obd;
     } else if (gpsFresh) {
