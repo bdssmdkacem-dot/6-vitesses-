@@ -9,7 +9,7 @@ void main() {
 
   test('fused source combines fresh GPS and IMU confidence', () {
     final fusion = SensorFusionService();
-    fusion.updateMotion(const MotionSample(
+    fusion.updateMotion(MotionSample(
       longitudinalAcceleration: 1.2,
       lateralAcceleration: 0.1,
       totalAcceleration: 1.3,
@@ -23,7 +23,7 @@ void main() {
       longitudinalAcceleration: 1.0,
       timestamp: t0,
       isStale: false,
-      position: const LatLng(34.02, -6.84),
+      position: LatLng(34.02, -6.84),
       speedConfidence: 0.95,
     ));
     expect(sample.source, SensorSource.fused);
@@ -41,11 +41,11 @@ void main() {
       isStale: false,
       speedConfidence: .9,
     ));
-    fusion.updateMotion(const MotionSample(
+    fusion.updateMotion(MotionSample(
       longitudinalAcceleration: 1,
       lateralAcceleration: 0,
       totalAcceleration: 1,
-      timestamp: t0.add(Duration(milliseconds: 500)),
+      timestamp: t0.add(const Duration(milliseconds: 500)),
       axis: 0,
       noiseConfidence: .9,
     ));
