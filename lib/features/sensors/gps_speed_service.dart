@@ -157,6 +157,26 @@ class GpsSpeedService {
     );
   }
 
+  bool isPlausibleJump({
+    required LatLng previous,
+    required LatLng current,
+    required Duration elapsed,
+    required double previousAccuracy,
+    required double currentAccuracy,
+  }) {
+    final seconds = elapsed.inMilliseconds / 1000.0;
+    if (seconds <= 0 || seconds > 10) return true;
+    final distance = Geolocator.distanceBetween(
+      previous.latitude,
+      previous.longitude,
+      current.latitude,
+      current.longitude,
+    );
+    final impliedSpeedKmh = distance / seconds * 3.6;
+    return !(impliedSpeedKmh > maxJumpSpeedKmh &&
+        distance > mathMax(40, previousAccuracy + currentAccuracy));
+  }
+
   void _onPosition(Position position) {
     if (_disposed) return;
     if (position.timestamp.isAfter(DateTime.now().add(const Duration(minutes: 1)))) {
@@ -174,15 +194,14 @@ class GpsSpeedService {
       final dt = position.timestamp.difference(previous.timestamp).inMilliseconds /
           1000.0;
       if (dt > 0 && dt <= 10) {
-        final distance = Geolocator.distanceBetween(
-          previous.latitude,
-          previous.longitude,
-          position.latitude,
-          position.longitude,
+        final plausible = isPlausibleJump(
+          previous: LatLng(previous.latitude, previous.longitude),
+          current: LatLng(position.latitude, position.longitude),
+          elapsed: Duration(milliseconds: (dt * 1000).round()),
+          previousAccuracy: previous.accuracy,
+          currentAccuracy: position.accuracy,
         );
-        final impliedSpeedKmh = distance / dt * 3.6;
-        if (impliedSpeedKmh > maxJumpSpeedKmh &&
-            distance > mathMax(40, previous.accuracy + position.accuracy)) {
+        if (!plausible) {
           _jumpRejections++;
           _status = 'GPS JUMP REJECTED';
           return;
