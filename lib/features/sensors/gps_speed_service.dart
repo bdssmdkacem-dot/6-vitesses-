@@ -28,7 +28,7 @@ class GpsSample {
 class GpsSpeedService {
   GpsSpeedService({
     this.windowSize = 5,
-    this.maxAccuracyMeters = 250,
+    this.maxAccuracyMeters = 500,
     this.staleAfter = const Duration(seconds: 4),
     this.maxJumpSpeedKmh = 320,
   });
@@ -59,6 +59,8 @@ class GpsSpeedService {
   String? get lastError => _lastError;
   LocationPermission get permission => _permission;
   int get jumpRejections => _jumpRejections;
+  bool get isRunning => _subscription != null;
+  bool get hasFix => _lastUpdate != null && !isStale;
 
   Future<LocationPermission> refreshPermission() async {
     _permission = await Geolocator.checkPermission();
@@ -75,12 +77,15 @@ class GpsSpeedService {
 
   Future<void> start() async {
     if (_disposed || _starting) return;
+    if (_subscription != null && !isStale) return;
     _starting = true;
     try {
       await _ensurePermissionAndStream();
     } finally {
       _starting = false;
-      if (!_disposed) _scheduleRetry();
+      if (!_disposed && (_subscription == null || isStale)) {
+        _scheduleRetry();
+      }
     }
   }
 
@@ -105,8 +110,10 @@ class GpsSpeedService {
     }
 
     _listenForServiceChanges();
-    await _subscription?.cancel();
-    _subscription = null;
+    if (_subscription != null) {
+      await _subscription!.cancel();
+      _subscription = null;
+    }
     _status = 'WAITING FOR FIX';
     const settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
@@ -124,7 +131,7 @@ class GpsSpeedService {
     try {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: settings,
-      ).timeout(const Duration(seconds: 12));
+      ).timeout(const Duration(seconds: 20));
       _onPosition(position);
     } on TimeoutException {
       _status = 'NO FIX YET';
@@ -183,8 +190,10 @@ class GpsSpeedService {
       return;
     }
     if (position.accuracy.isNaN ||
+        position.accuracy < 0 ||
         position.accuracy > maxAccuracyMeters ||
         position.speed.isNaN ||
+        position.speed.isInfinite ||
         position.speed < 0) {
       return;
     }
