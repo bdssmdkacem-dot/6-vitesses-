@@ -2,27 +2,30 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/hud_theme.dart';
 class SpeedGauge extends StatelessWidget {
-  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav,this.gForce=0});
-  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout; final double gForce;
+  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav,this.gForce=0,this.longitudinalAccel=0,this.gear=0});
+  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout; final double gForce,longitudinalAccel; final int gear;
   @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>TweenAnimationBuilder<double>(
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
       HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
-      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout,gForce:gForce),
+      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout,gForce:gForce,longitudinalAccel:longitudinalAccel,gear:gear),
       HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
       HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
     }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
-  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout,required this.gForce});
-  final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce;
+  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout,required this.gForce,required this.longitudinalAccel,required this.gear});
+  final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce,longitudinalAccel; final int gear;
   @override Widget build(BuildContext context){
     final width=math.min(430.0,maxWidth*.52);
     final fontSize=math.min(126.0,math.max(82.0,width*.30));
     if (layout == GtLayout.sport) {
-      return SizedBox(width:width,height:150,child:Stack(alignment:Alignment.center,children:[
+      return SizedBox(width:width,height:190,child:Stack(alignment:Alignment.center,children:[
         Positioned.fill(child:CustomPaint(painter:_SportGtPainter(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
+        Positioned(top:6,left:10,child:_SportTelemetry(label:'G',value:gForce.toStringAsFixed(2),theme:theme)),
+        Positioned(top:6,right:10,child:_SportTelemetry(label:'GEAR',value:gear==0?'N':gear.toString(),theme:theme)),
         Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:fontSize*1.08,fontWeight:FontWeight.w900,height:.82,letterSpacing:-5)),
+        Positioned(bottom:24,left:18,right:18,child:_SportAccelBar(accel:longitudinalAccel,theme:theme)),
         Positioned(bottom:4,child:Text('SPORT GT',style:TextStyle(color:theme.secondary,fontSize:11,fontWeight:FontWeight.w900,letterSpacing:2))),
       ]));
     }
@@ -50,6 +53,34 @@ class _DigitalGtSpeed extends StatelessWidget {
       Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:13,fontWeight:FontWeight.w800,letterSpacing:2.5)),
     ]));
   }
+}
+class _SportTelemetry extends StatelessWidget {
+  const _SportTelemetry({required this.label,required this.value,required this.theme});
+  final String label,value; final HudTheme theme;
+  @override Widget build(BuildContext context)=>Column(mainAxisSize:MainAxisSize.min,children:[
+    Text(label,style:TextStyle(color:theme.secondary,fontSize:8,fontWeight:FontWeight.w800,letterSpacing:1.5)),
+    Text(value,style:TextStyle(color:theme.accent,fontSize:18,fontWeight:FontWeight.w900,height:.9)),
+  ]);
+}
+class _SportAccelBar extends StatelessWidget {
+  const _SportAccelBar({required this.accel,required this.theme});
+  final double accel; final HudTheme theme;
+  @override Widget build(BuildContext context)=>SizedBox(height:18,child:CustomPaint(painter:_SportAccelPainter(accel:accel,theme:theme)));
+}
+class _SportAccelPainter extends CustomPainter {
+  const _SportAccelPainter({required this.accel,required this.theme});
+  final double accel; final HudTheme theme;
+  @override void paint(Canvas canvas,Size size){
+    final base=Paint()..color=theme.secondary.withValues(alpha:.14);
+    final active=Paint()..color=theme.accent;
+    final mid=size.width/2;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0,7,size.width,4),const Radius.circular(2)),base);
+    final v=(accel/6).clamp(-1.0,1.0).toDouble();
+    final x=mid+v*mid;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(math.min(mid,x),7,(x-mid).abs(),4),const Radius.circular(2)),active);
+    canvas.drawCircle(Offset(x,9),5,active);
+  }
+  @override bool shouldRepaint(covariant _SportAccelPainter old)=>old.accel!=accel||old.theme!=theme;
 }
 class _MiniGForceGauge extends StatelessWidget {
   const _MiniGForceGauge({required this.gForce,required this.theme});
