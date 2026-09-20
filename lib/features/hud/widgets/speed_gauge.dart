@@ -56,6 +56,16 @@ class _DigitalGtArcPainter extends CustomPainter {
     final base=Paint()..style=PaintingStyle.stroke..strokeWidth=3..strokeCap=StrokeCap.round..color=theme.secondary.withValues(alpha:.14);
     final active=Paint()..style=PaintingStyle.stroke..strokeWidth=4..strokeCap=StrokeCap.round..color=theme.accent.withValues(alpha:.8);
     canvas.drawArc(rect,math.pi*1.15,math.pi*.70,false,base); canvas.drawArc(rect,math.pi*1.15,math.pi*.70*progress,false,active);
+    final road=Path()
+      ..moveTo(size.width*.50,size.height*.98)
+      ..cubicTo(size.width*.43,size.height*.78,size.width*.66,size.height*.62,size.width*.50,size.height*.43)
+      ..cubicTo(size.width*.38,size.height*.28,size.width*.57,size.height*.17,size.width*.50,size.height*.05);
+    final roadPaint=Paint()..style=PaintingStyle.stroke..strokeWidth=math.max(18,size.width*.055)..strokeCap=StrokeCap.round..color=Colors.black.withValues(alpha:.68);
+    final roadEdge=Paint()..style=PaintingStyle.stroke..strokeWidth=2..strokeCap=StrokeCap.round..color=theme.secondary.withValues(alpha:.22);
+    final lane=Paint()..style=PaintingStyle.stroke..strokeWidth=2..strokeCap=StrokeCap.round..color=theme.accent.withValues(alpha:.48);
+    canvas.drawPath(road,roadPaint); canvas.drawPath(road,roadEdge);
+    final metric=road.computeMetrics().first;
+    for(double d=0; d<metric.length; d+=18){canvas.drawPath(metric.extractPath(d,math.min(d+8,metric.length)),lane);}
   }
   @override bool shouldRepaint(covariant _DigitalGtArcPainter old)=>old.progress!=progress||old.theme!=theme;
 }
