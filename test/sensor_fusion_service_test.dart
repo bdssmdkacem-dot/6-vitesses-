@@ -42,7 +42,7 @@ void main() {
       axis: 0,
       noiseConfidence: 0.9,
     ));
-    final sample = fusion.updateObd(const ObdTelemetry(
+    final sample = fusion.updateObd(ObdTelemetry(
       source: ObdTelemetrySource.obd,
       vehicleSpeedKmh: 72,
       timestamp: DateTime(2026, 1, 1),
