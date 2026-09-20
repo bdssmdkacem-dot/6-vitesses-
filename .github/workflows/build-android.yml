@@ -1,63 +1,62 @@
 name: Build 6 Vitesses Android
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
+    name: Analyze Test and Build Android
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
           flutter-version: "3.41.9"
+          channel: stable
           cache: true
+
       - name: Generate Android project
         run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
-      - name: Add Android network and location permissions
+
+      - name: Add location permissions and native GPS request
+        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          s = p.read_text()
-          marker = '<application'
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text()
 
           permissions = [
-              '    <uses-permission android:name="android.permission.INTERNET"/>',
-              '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>',
-              '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
-              '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>',
+              'android.permission.INTERNET',
+              'android.permission.ACCESS_NETWORK_STATE',
+              'android.permission.ACCESS_FINE_LOCATION',
+              'android.permission.ACCESS_COARSE_LOCATION',
           ]
 
-          for permission in permissions:
-              name = permission.split('android:name="', 1)[1].split('"', 1)[0]
-              if f'android:name="{name}"' not in s:
-                  s = s.replace(marker, permission + '\n' + marker, 1)
+          for name in permissions:
+              line = f'    <uses-permission android:name="{name}"/>'
+              if f'android:name="{name}"' not in text:
+                  text = text.replace('<application', line + '\n    <application', 1)
 
-          p.write_text(s)
+          manifest.write_text(text)
 
-          print("Final AndroidManifest permissions:")
-          for line in s.splitlines():
-              if '<uses-permission' in line:
-                  print(line.strip())
-          PY
-      - name: Add native foreground location request
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path("android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt")
-          p.parent.mkdir(parents=True, exist_ok=True)
-          p.write_text("""package com.sixvitesses.six_vitesses
+          activity = Path("android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt")
+          activity.parent.mkdir(parents=True, exist_ok=True)
+          activity.write_text("""package com.sixvitesses.six_vitesses
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import io.flutter.embedding.android.FlutterActivity
@@ -81,6 +80,7 @@ class MainActivity : FlutterActivity() {
 
         val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
         val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+
         if (fine == PackageManager.PERMISSION_GRANTED ||
             coarse == PackageManager.PERMISSION_GRANTED) {
             requestPosted = false
@@ -96,9 +96,9 @@ class MainActivity : FlutterActivity() {
 
             val currentFine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
             val currentCoarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+
             if (currentFine != PackageManager.PERMISSION_GRANTED &&
-                currentCoarse != PackageManager.PERMISSION_GRANTED
-            ) {
+                currentCoarse != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(
                     arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -125,18 +125,30 @@ class MainActivity : FlutterActivity() {
     }
 }
 """)
-          print(p)
+
+          print("Manifest and MainActivity prepared.")
           PY
-      - run: flutter pub get
+
+      - name: Get dependencies
+        run: flutter pub get
+
       - name: Generate launcher icon
         run: dart run flutter_launcher_icons
+
       - name: Generate native splash
         run: dart run flutter_native_splash:create
-      - run: flutter analyze
-      - run: flutter test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
       - name: Build APK
         run: flutter build apk --release
+
       - name: Verify APK permissions
+        shell: bash
         run: |
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
           "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-permissions.txt
@@ -144,13 +156,18 @@ class MainActivity : FlutterActivity() {
           grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
           grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
+
       - name: Build AAB
         run: flutter build appbundle --release
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: six-vitesses-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
         with:
           name: six-vitesses-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
