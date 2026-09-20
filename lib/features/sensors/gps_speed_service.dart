@@ -94,6 +94,24 @@ class GpsSpeedService {
     }
   }
 
+  /// Forces a fresh Android location acquisition.
+  ///
+  /// This is used immediately after the user grants Location permission.
+  /// Android can keep the first stream created during the permission
+  /// transition in a waiting state; recreating the stream after the grant
+  /// reliably starts acquisition without requiring an app restart.
+  Future<void> restart() async {
+    if (_disposed || _starting) return;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    await _subscription?.cancel();
+    _subscription = null;
+    _lastUpdate = null;
+    _previous = null;
+    _status = 'RESTARTING GPS';
+    await start();
+  }
+
   Future<void> _ensurePermissionAndStream() async {
     if (_disposed) return;
     if (!await Geolocator.isLocationServiceEnabled()) {
