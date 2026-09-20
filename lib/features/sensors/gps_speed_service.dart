@@ -28,7 +28,7 @@ class GpsSample {
 class GpsSpeedService {
   GpsSpeedService({
     this.windowSize = 5,
-    this.maxAccuracyMeters = 500,
+    this.maxAccuracyMeters = 3000,
     this.staleAfter = const Duration(seconds: 10),
     this.maxJumpSpeedKmh = 320,
   });
@@ -229,6 +229,11 @@ class GpsSpeedService {
     if (position.timestamp.isAfter(DateTime.now().add(const Duration(minutes: 1)))) {
       return;
     }
+    // Android 12+ can grant Approximate Location. In that mode the first
+    // fix can legitimately have several hundred meters of accuracy. Rejecting
+    // it as invalid leaves the HUD on GPS LOST until Android is reinitialized.
+    // Accept the coarse fix so the app can lock immediately, then let better
+    // fixes replace it as they arrive.
     if (position.accuracy.isNaN ||
         position.accuracy < 0 ||
         position.accuracy > maxAccuracyMeters ||
@@ -277,7 +282,7 @@ class GpsSpeedService {
 
     _previous = position;
     _lastUpdate = now;
-    _status = 'LOCKED';
+    _status = position.accuracy <= 500 ? 'LOCKED' : 'COARSE LOCK';
     _lastError = null;
     _retryTimer?.cancel();
 
