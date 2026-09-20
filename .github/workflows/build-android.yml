@@ -46,6 +46,87 @@ jobs:
               if '<uses-permission' in line:
                   print(line.strip())
           PY
+      - name: Add native foreground location request
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt")
+          p.parent.mkdir(parents=True, exist_ok=True)
+          p.write_text("""package com.sixvitesses.six_vitesses
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity() {
+    private companion object {
+        const val REQUEST_CODE = 6101
+        const val DELAY_MS = 800L
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var requestPosted = false
+
+    override fun onPostResume() {
+        super.onPostResume()
+        requestLocationIfNeeded()
+    }
+
+    private fun requestLocationIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return
+
+        val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (fine == PackageManager.PERMISSION_GRANTED ||
+            coarse == PackageManager.PERMISSION_GRANTED) {
+            requestPosted = false
+            return
+        }
+
+        if (requestPosted || isFinishing || isDestroyed) return
+        requestPosted = true
+
+        handler.postDelayed({
+            requestPosted = false
+            if (isFinishing || isDestroyed) return@postDelayed
+
+            val currentFine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+            val currentCoarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+            if (currentFine != PackageManager.PERMISSION_GRANTED &&
+                currentCoarse != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ),
+                    REQUEST_CODE
+                )
+            }
+        }, DELAY_MS)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE) requestPosted = false
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+}
+""")
+          print(p)
+          PY
       - run: flutter pub get
       - name: Generate launcher icon
         run: dart run flutter_launcher_icons
