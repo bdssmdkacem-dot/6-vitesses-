@@ -330,6 +330,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
                     unitLabel: unitLabel,
                     animate: widget.settings.animations,
                     gtLayout: gtLayout,
+                    gForce: _totalAccel / 9.80665,
                   ),
                 )
               : SpeedGauge(
