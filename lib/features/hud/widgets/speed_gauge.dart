@@ -16,7 +16,7 @@ class SpeedGauge extends StatelessWidget {
     }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
-  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth});
+  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout});
   final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout;
   @override Widget build(BuildContext context){
     final width=math.min(430.0,maxWidth*.52);
@@ -39,7 +39,6 @@ class _DigitalGtSpeed extends StatelessWidget {
         ]),
       ]));
     }
-    final fontSize=math.min(126.0,math.max(82.0,width*.30));
     return SizedBox(width:width,child:Column(mainAxisSize:MainAxisSize.min,children:[
       Text('6 VITESSES GT',style:TextStyle(color:theme.secondary.withValues(alpha:.78),fontSize:10,fontWeight:FontWeight.w800,letterSpacing:4)),
       const SizedBox(height:5),
