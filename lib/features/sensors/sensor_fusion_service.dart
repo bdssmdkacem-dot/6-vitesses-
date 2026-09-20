@@ -47,15 +47,17 @@ class SensorFusionService {
   MotionSample? _motion;
   double _fusedSpeed = 0;
   DateTime? _fusedSpeedAt;
+  DateTime? _gpsReceivedAt;
   DateTime? _lastFusionAt;
 
   SensorFusionSample updateGps(GpsSample sample) {
     if (!sample.isStale) {
       _gps = sample;
       _fusedSpeed = sample.speedKmh;
-      _fusedSpeedAt = sample.timestamp;
+      _fusedSpeedAt = DateTime.now();
     }
-    return _compose(sample.timestamp);
+    _gpsReceivedAt = DateTime.now();
+    return _compose(DateTime.now());
   }
 
   SensorFusionSample updateMotion(MotionSample sample) {
@@ -84,7 +86,7 @@ class SensorFusionService {
 
     final gpsAge = gps == null
         ? const Duration(days: 1)
-        : now.difference(gps.timestamp).abs();
+        : now.difference(_gpsReceivedAt ?? gps.timestamp).abs();
     final imuAge = motion == null
         ? const Duration(days: 1)
         : now.difference(motion.timestamp).abs();
@@ -100,7 +102,7 @@ class SensorFusionService {
     if (gpsFresh) {
       speed = gps.speedKmh;
       _fusedSpeed = speed;
-      _fusedSpeedAt = gps.timestamp;
+      _fusedSpeedAt = _gpsReceivedAt ?? now;
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
       speedConfidence = gps.speedConfidence;
     } else if (imuFresh) {
