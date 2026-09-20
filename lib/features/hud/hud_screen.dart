@@ -155,7 +155,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     _motionService.start();await _gpsService.start();
     _trafficTimer?.cancel();
     _trafficTimer = Timer.periodic(const Duration(seconds: 5), (_) { _refreshTrafficSigns(); });
-    _gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:1),(_){if(!mounted)return;final stale=_gpsService.isStale;if(stale!=_gpsStale)setState(()=>_gpsStale=stale);if(stale)_gpsService.start();});if(mounted)setState(()=>_ready=true);
+    _gpsWatchdog?.cancel();_gpsWatchdog=Timer.periodic(const Duration(seconds:1),(_){if(!mounted)return;final stale=_gpsService.isStale;if(stale!=_gpsStale)setState(()=>_gpsStale=stale);});if(mounted)setState(()=>_ready=true);
   }
   Future<void> _refreshTrafficSigns() async {
     final position = _lastPosition;
