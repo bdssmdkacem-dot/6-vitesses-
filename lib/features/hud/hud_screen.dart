@@ -60,7 +60,32 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   Future<void> _initializeHud() async {await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);if(!mounted)return;final permission=await _gpsService.requestLocationPermission();if(!mounted)return;if(permission==LocationPermission.denied){await _showLocationPermissionDenied();}else if(permission==LocationPermission.deniedForever){await _showLocationPermissionBlocked();}if(!mounted)return;await _enterHud();await _startSensors();}
   Future<void> _showLocationPermissionDenied() async {await showDialog<void>(context:context,barrierDismissible:false,builder:(dialogContext)=>AlertDialog(title:const Text('LOCATION REQUIRED'),content:const Text('Location permission is required for GPS speed and driving measurements.'),actions:[TextButton(onPressed:() async {final result=await _gpsService.requestLocationPermission();if(!dialogContext.mounted)return;if(result==LocationPermission.deniedForever){Navigator.pop(dialogContext);await _showLocationPermissionBlocked();}else if(result==LocationPermission.whileInUse||result==LocationPermission.always){Navigator.pop(dialogContext);}},child:const Text('RE-ALLOW LOCATION')),FilledButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('CONTINUE'))]));}
   Future<void> _showLocationPermissionBlocked() async {await showDialog<void>(context:context,builder:(dialogContext)=>AlertDialog(title:const Text('LOCATION PERMISSION'),content:const Text('Location access is blocked. Open Android app settings and allow Location.'),actions:[TextButton(onPressed:() async {await Geolocator.openAppSettings();if(dialogContext.mounted)Navigator.pop(dialogContext);},child:const Text('APP SETTINGS')),FilledButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('CLOSE'))]));}
-  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed)_enterHud();}
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_handleHudResume());
+    }
+  }
+
+  Future<void> _handleHudResume() async {
+    await _enterHud();
+    if (!mounted) return;
+
+    // Android may grant the native permission dialog after Flutter's
+    // initial permission request already returned. Refresh the actual
+    // permission state and start GPS immediately without requiring a
+    // second app launch.
+    final permission = await _gpsService.refreshPermission();
+    if (!mounted) return;
+
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      await _gpsService.start();
+      if (!_ready) {
+        await _startSensors();
+      }
+    }
+  }
   Future<void> _enterHud()async{await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft,DeviceOrientation.landscapeRight]);await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);await WakelockPlus.enable();}
   Future<void> _startSensors()async{
     _gpsSub ??= _gpsService.samples.listen((sample){
