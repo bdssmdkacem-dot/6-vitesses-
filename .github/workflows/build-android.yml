@@ -13,7 +13,6 @@ jobs:
   build:
     name: Analyze Test and Build Android
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,105 +27,113 @@ jobs:
       - name: Generate Android project
         run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
 
-      - name: Add location permissions and native GPS request
-        shell: bash
+      - name: Add location permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          permissions = [
+              "android.permission.INTERNET",
+              "android.permission.ACCESS_NETWORK_STATE",
+              "android.permission.ACCESS_FINE_LOCATION",
+              "android.permission.ACCESS_COARSE_LOCATION",
+          ]
+          for name in permissions:
+              if f'android:name="{name}"' not in s:
+                  s = s.replace(
+                      "<application",
+                      f'    <uses-permission android:name="{name}"/>\\n    <application',
+                      1,
+                  )
+          p.write_text(s)
+          print("Android permissions configured.")
+          PY
+
+      - name: Add native foreground location request
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          text = manifest.read_text()
+          p = Path("android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt")
+          p.parent.mkdir(parents=True, exist_ok=True)
 
-          permissions = [
-              'android.permission.INTERNET',
-              'android.permission.ACCESS_NETWORK_STATE',
-              'android.permission.ACCESS_FINE_LOCATION',
-              'android.permission.ACCESS_COARSE_LOCATION',
+          lines = [
+              "package com.sixvitesses.six_vitesses",
+              "",
+              "import android.Manifest",
+              "import android.content.pm.PackageManager",
+              "import android.os.Handler",
+              "import android.os.Looper",
+              "import io.flutter.embedding.android.FlutterActivity",
+              "",
+              "class MainActivity : FlutterActivity() {",
+              "    private companion object {",
+              "        const val REQUEST_CODE = 6101",
+              "        const val DELAY_MS = 800L",
+              "    }",
+              "",
+              "    private val handler = Handler(Looper.getMainLooper())",
+              "    private var requestPosted = false",
+              "",
+              "    override fun onPostResume() {",
+              "        super.onPostResume()",
+              "        requestLocationIfNeeded()",
+              "    }",
+              "",
+              "    private fun requestLocationIfNeeded() {",
+              "        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return",
+              "",
+              "        val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)",
+              "        val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)",
+              "",
+              "        if (fine == PackageManager.PERMISSION_GRANTED ||",
+              "            coarse == PackageManager.PERMISSION_GRANTED) {",
+              "            requestPosted = false",
+              "            return",
+              "        }",
+              "",
+              "        if (requestPosted || isFinishing || isDestroyed) return",
+              "        requestPosted = true",
+              "",
+              "        handler.postDelayed({",
+              "            requestPosted = false",
+              "            if (isFinishing || isDestroyed) return@postDelayed",
+              "",
+              "            val currentFine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)",
+              "            val currentCoarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)",
+              "",
+              "            if (currentFine != PackageManager.PERMISSION_GRANTED &&",
+              "                currentCoarse != PackageManager.PERMISSION_GRANTED) {",
+              "                requestPermissions(",
+              "                    arrayOf(",
+              "                        Manifest.permission.ACCESS_FINE_LOCATION,",
+              "                        Manifest.permission.ACCESS_COARSE_LOCATION",
+              "                    ),",
+              "                    REQUEST_CODE",
+              "                )",
+              "            }",
+              "        }, DELAY_MS)",
+              "    }",
+              "",
+              "    override fun onRequestPermissionsResult(",
+              "        requestCode: Int,",
+              "        permissions: Array<out String>,",
+              "        grantResults: IntArray",
+              "    ) {",
+              "        super.onRequestPermissionsResult(requestCode, permissions, grantResults)",
+              "        if (requestCode == REQUEST_CODE) requestPosted = false",
+              "    }",
+              "",
+              "    override fun onDestroy() {",
+              "        handler.removeCallbacksAndMessages(null)",
+              "        super.onDestroy()",
+              "    }",
+              "}",
           ]
 
-          for name in permissions:
-              line = f'    <uses-permission android:name="{name}"/>'
-              if f'android:name="{name}"' not in text:
-                  text = text.replace('<application', line + '\n    <application', 1)
-
-          manifest.write_text(text)
-
-          activity = Path("android/app/src/main/kotlin/com/sixvitesses/six_vitesses/MainActivity.kt")
-          activity.parent.mkdir(parents=True, exist_ok=True)
-          activity.write_text("""package com.sixvitesses.six_vitesses
-
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Handler
-import android.os.Looper
-import io.flutter.embedding.android.FlutterActivity
-
-class MainActivity : FlutterActivity() {
-    private companion object {
-        const val REQUEST_CODE = 6101
-        const val DELAY_MS = 800L
-    }
-
-    private val handler = Handler(Looper.getMainLooper())
-    private var requestPosted = false
-
-    override fun onPostResume() {
-        super.onPostResume()
-        requestLocationIfNeeded()
-    }
-
-    private fun requestLocationIfNeeded() {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return
-
-        val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-        val coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-
-        if (fine == PackageManager.PERMISSION_GRANTED ||
-            coarse == PackageManager.PERMISSION_GRANTED) {
-            requestPosted = false
-            return
-        }
-
-        if (requestPosted || isFinishing || isDestroyed) return
-        requestPosted = true
-
-        handler.postDelayed({
-            requestPosted = false
-            if (isFinishing || isDestroyed) return@postDelayed
-
-            val currentFine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-            val currentCoarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-
-            if (currentFine != PackageManager.PERMISSION_GRANTED &&
-                currentCoarse != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    ),
-                    REQUEST_CODE
-                )
-            }
-        }, DELAY_MS)
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE) requestPosted = false
-    }
-
-    override fun onDestroy() {
-        handler.removeCallbacksAndMessages(null)
-        super.onDestroy()
-    }
-}
-""")
-
-          print("Manifest and MainActivity prepared.")
+          p.write_text("\n".join(lines) + "\n")
+          print(f"Generated {p}")
           PY
 
       - name: Get dependencies
@@ -148,7 +155,6 @@ class MainActivity : FlutterActivity() {
         run: flutter build apk --release
 
       - name: Verify APK permissions
-        shell: bash
         run: |
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
           "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-permissions.txt
