@@ -98,7 +98,7 @@ class SensorFusionService {
     var speedConfidence = 0.0;
 
     if (gpsFresh) {
-      speed = gps!.speedKmh;
+      speed = gps.speedKmh;
       _fusedSpeed = speed;
       _fusedSpeedAt = gps.timestamp;
       source = imuFresh ? SensorSource.fused : SensorSource.gps;
@@ -112,7 +112,7 @@ class SensorFusionService {
               ? 0.0
               : now.difference(previousComposeAt).inMilliseconds / 1000.0;
           speed = (_fusedSpeed +
-                  motion!.longitudinalAcceleration * dt * 3.6)
+                  motion.longitudinalAcceleration * dt * 3.6)
               .clamp(0.0, 400.0)
               .toDouble();
           _fusedSpeed = speed;
@@ -135,16 +135,16 @@ class SensorFusionService {
 
     double acceleration;
     if (gpsFresh && imuFresh) {
-      final wg = gps!.speedConfidence.clamp(.15, 1.0);
-      final wi = motion!.noiseConfidence.clamp(.15, 1.0);
+      final wg = gps.speedConfidence.clamp(.15, 1.0);
+      final wi = motion.noiseConfidence.clamp(.15, 1.0);
       acceleration =
           (gps.longitudinalAcceleration * wg +
                   motion.longitudinalAcceleration * wi) /
               (wg + wi);
     } else if (imuFresh) {
-      acceleration = motion!.longitudinalAcceleration;
+      acceleration = motion.longitudinalAcceleration;
     } else if (gpsFresh) {
-      acceleration = gps!.longitudinalAcceleration;
+      acceleration = gps.longitudinalAcceleration;
     } else {
       acceleration = 0;
     }
@@ -174,7 +174,7 @@ class SensorFusionService {
       speedKmh: speed,
       longitudinalAcceleration:
           acceleration.clamp(-15.0, 15.0).toDouble(),
-      lateralAcceleration: imuFresh ? motion!.lateralAcceleration : 0,
+      lateralAcceleration: imuFresh ? motion.lateralAcceleration : 0,
       totalAcceleration: imuFresh ? motion.totalAcceleration : 0,
       speedConfidence: speedConfidence,
       accelerationConfidence: accelerationConfidence,
