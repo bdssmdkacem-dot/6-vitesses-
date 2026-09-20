@@ -2,8 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/hud_theme.dart';
 class SpeedGauge extends StatelessWidget {
-  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav});
-  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout;
+  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav,this.gForce=0});
+  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout; final double gForce;
   @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>TweenAnimationBuilder<double>(
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
@@ -14,8 +14,8 @@ class SpeedGauge extends StatelessWidget {
     }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
-  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout});
-  final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout;
+  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout,required this.gForce});
+  final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce;
   @override Widget build(BuildContext context){
     final width=math.min(430.0,maxWidth*.52);
     final fontSize=math.min(126.0,math.max(82.0,width*.30));
@@ -27,14 +27,16 @@ class _DigitalGtSpeed extends StatelessWidget {
       ]));
     }
     if (layout == GtLayout.touring) {
-      return Container(width:300,height:128,padding:const EdgeInsets.symmetric(horizontal:22,vertical:12),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(28),border:Border.all(color:theme.secondary.withValues(alpha:.45))),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-        SizedBox(width:62,height:100,child:CustomPaint(painter:_TouringGtBars(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
-        const SizedBox(width:16),
+      return Container(width:360,height:128,padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(28),border:Border.all(color:theme.secondary.withValues(alpha:.45))),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+        SizedBox(width:54,height:100,child:CustomPaint(painter:_TouringGtBars(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
+        const SizedBox(width:10),
         Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:72,fontWeight:FontWeight.w800,height:.8)),
-          Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:11,fontWeight:FontWeight.w800,letterSpacing:2)),
-          const SizedBox(height:4),Text('TOURING GT',style:TextStyle(color:theme.secondary.withValues(alpha:.7),fontSize:9,fontWeight:FontWeight.w700,letterSpacing:2)),
+          Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:68,fontWeight:FontWeight.w800,height:.8)),
+          Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:10,fontWeight:FontWeight.w800,letterSpacing:2)),
+          const SizedBox(height:3),Text('TOURING GT',style:TextStyle(color:theme.secondary.withValues(alpha:.7),fontSize:9,fontWeight:FontWeight.w700,letterSpacing:2)),
         ]),
+        const SizedBox(width:16),
+        _MiniGForceGauge(gForce:gForce,theme:theme),
       ]));
     }
     return SizedBox(width:width,child:Column(mainAxisSize:MainAxisSize.min,children:[
@@ -48,6 +50,41 @@ class _DigitalGtSpeed extends StatelessWidget {
       Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:13,fontWeight:FontWeight.w800,letterSpacing:2.5)),
     ]));
   }
+}
+class _MiniGForceGauge extends StatelessWidget {
+  const _MiniGForceGauge({required this.gForce,required this.theme});
+  final double gForce;
+  final HudTheme theme;
+  @override Widget build(BuildContext context) => SizedBox(
+    width:62,height:78,
+    child:CustomPaint(
+      painter:_MiniGForcePainter(gForce:gForce,theme:theme),
+      child:Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Text(gForce.toStringAsFixed(2),style:TextStyle(color:theme.accent,fontSize:19,fontWeight:FontWeight.w900,height:.9)),
+        Text('G',style:TextStyle(color:theme.secondary,fontSize:9,fontWeight:FontWeight.w900,letterSpacing:1.5)),
+      ])),
+    ),
+  );
+}
+class _MiniGForcePainter extends CustomPainter {
+  const _MiniGForcePainter({required this.gForce,required this.theme});
+  final double gForce; final HudTheme theme;
+  @override void paint(Canvas canvas,Size size){
+    final center=Offset(size.width/2,size.height/2);
+    final radius=math.min(size.width,size.height)*.42;
+    final base=Paint()..style=PaintingStyle.stroke..strokeWidth=4..color=theme.secondary.withValues(alpha:.16);
+    final active=Paint()..style=PaintingStyle.stroke..strokeWidth=4..strokeCap=StrokeCap.round..color=theme.accent;
+    canvas.drawCircle(center,radius,base);
+    final v=(gForce.abs()/.8).clamp(0.0,1.0).toDouble();
+    canvas.drawArc(Rect.fromCircle(center:center,radius:radius),-math.pi/2,math.pi*2*v,false,active);
+    final axis=Paint()..color=theme.secondary.withValues(alpha:.2)..strokeWidth=1;
+    canvas.drawLine(Offset(center.dx-radius*.65,center.dy),Offset(center.dx+radius*.65,center.dy),axis);
+    canvas.drawLine(Offset(center.dx,center.dy-radius*.65),Offset(center.dx,center.dy+radius*.65),axis);
+    final dot=Paint()..color=theme.accent;
+    final dx=(gForce.clamp(-1.0,1.0))*radius*.5;
+    canvas.drawCircle(center+Offset(dx,0),3,dot);
+  }
+  @override bool shouldRepaint(covariant _MiniGForcePainter old)=>old.gForce!=gForce||old.theme!=theme;
 }
 class _DigitalGtArcPainter extends CustomPainter {
   const _DigitalGtArcPainter({required this.progress,required this.theme}); final double progress; final HudTheme theme;
