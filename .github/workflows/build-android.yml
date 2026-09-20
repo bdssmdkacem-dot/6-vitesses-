@@ -1,4 +1,5 @@
 name: Build 6 Vitesses Android
+# Stage 1 NAV GT CI verification
 
 on:
   push:
