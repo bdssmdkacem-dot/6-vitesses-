@@ -101,8 +101,44 @@ class _DigitalGtArcPainter extends CustomPainter {
     final roadEdge=Paint()..style=PaintingStyle.stroke..strokeWidth=2..strokeCap=StrokeCap.round..color=theme.secondary.withValues(alpha:.22);
     final lane=Paint()..style=PaintingStyle.stroke..strokeWidth=2..strokeCap=StrokeCap.round..color=theme.accent.withValues(alpha:.48);
     canvas.drawPath(road,roadPaint); canvas.drawPath(road,roadEdge);
+    // Moving lane markers: progress advances the road rhythm so the NAV
+    // cluster feels like the car is travelling through the road rather than
+    // displaying a static decorative path.
     final metric=road.computeMetrics().first;
-    for(double d=0; d<metric.length; d+=18){canvas.drawPath(metric.extractPath(d,math.min(d+8,metric.length)),lane);}
+    final dashSpacing=18.0;
+    final dashLength=8.0;
+    final phase=(progress*metric.length*1.8)%dashSpacing;
+    for(double d=-dashSpacing+phase; d<metric.length; d+=dashSpacing){
+      if(d<0) continue;
+      canvas.drawPath(metric.extractPath(d,math.min(d+dashLength,metric.length)),lane);
+    }
+
+    // Perspective car marker at the driver's end of the road.
+    final carCenter=Offset(size.width*.50,size.height*.91);
+    final carGlow=Paint()..color=theme.accent.withValues(alpha:.16);
+    canvas.drawCircle(carCenter,10,carGlow);
+    final car=Paint()..color=theme.accent;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center:carCenter,width:7,height:13),
+        const Radius.circular(3),
+      ),
+      car,
+    );
+
+    // Small directional chevrons give the path a subtle forward-motion cue.
+    final chevron=Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=1.4
+      ..strokeCap=StrokeCap.round
+      ..color=theme.secondary.withValues(alpha:.30);
+    for(final t in <double>[.30,.52,.74]){
+      final p=road.computeMetrics().first.getTangentForOffset(metric.length*t);
+      if(p==null) continue;
+      final c=p.position;
+      canvas.drawLine(c+const Offset(-4,3),c,chevron);
+      canvas.drawLine(c,c+const Offset(4,3),chevron);
+    }
   }
   @override bool shouldRepaint(covariant _DigitalGtArcPainter old)=>old.progress!=progress||old.theme!=theme;
 }
