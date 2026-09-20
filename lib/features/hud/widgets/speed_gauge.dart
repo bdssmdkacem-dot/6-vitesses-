@@ -8,14 +8,14 @@ class SpeedGauge extends StatelessWidget {
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
       HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
-      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout,gForce:gForce,longitudinalAccel:longitudinalAccel,gear:gear,tripDistanceKm:tripDistanceKm),
+      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout,maxSpeed:maxSpeed,gForce:gForce,longitudinalAccel:longitudinalAccel,gear:gear,tripDistanceKm:tripDistanceKm),
       HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
       HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
     }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
-  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout,required this.gForce,required this.longitudinalAccel,required this.gear,required this.tripDistanceKm});
-  final double speed,maxWidth,tripDistanceKm; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce,longitudinalAccel; final int gear;
+  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.maxSpeed,required this.layout,required this.gForce,required this.longitudinalAccel,required this.gear,required this.tripDistanceKm});
+  final double speed,maxWidth,tripDistanceKm,maxSpeed; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce,longitudinalAccel; final int gear;
   @override Widget build(BuildContext context){
     final width=math.min(430.0,maxWidth*.52);
     final fontSize=math.min(126.0,math.max(82.0,width*.30));
