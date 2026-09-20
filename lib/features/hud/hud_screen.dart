@@ -355,10 +355,10 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if (gtEnabled && gtSpec.showMap && navigationActive)
           Positioned(
-            left: widget.settings.gtLayout == GtLayout.nav ? 100 : null,
-            right: widget.settings.gtLayout == GtLayout.touring ? 12 : null,
-            top: widget.settings.gtLayout == GtLayout.nav ? 50 : null,
-            bottom: widget.settings.gtLayout == GtLayout.touring ? 70 : null,
+            left: widget.settings.gtLayout == GtLayout.nav ? 92 : null,
+            right: widget.settings.gtLayout == GtLayout.touring ? 18 : null,
+            top: widget.settings.gtLayout == GtLayout.nav ? 46 : null,
+            bottom: widget.settings.gtLayout == GtLayout.touring ? 78 : null,
             child: GtRouteMap(
               route: _navigationState!.route,
               position: _lastPosition,
