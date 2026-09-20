@@ -44,6 +44,7 @@ class GpsSpeedService {
   StreamSubscription<Position>? _subscription;
   StreamSubscription<ServiceStatus>? _serviceSubscription;
   Timer? _retryTimer;
+  Timer? _permissionMonitor;
   final _controller = StreamController<GpsSample>.broadcast();
   bool _starting = false, _disposed = false;
   LocationPermission _permission = LocationPermission.denied;
@@ -77,13 +78,17 @@ class GpsSpeedService {
 
   Future<void> start() async {
     if (_disposed || _starting) return;
-    if (_subscription != null && !isStale) return;
+    // Keep an active stream alive while waiting for the very first fix.
+    // Recreating it every few seconds can reset Android's GPS acquisition.
+    if (_subscription != null && (_lastUpdate == null || !isStale)) return;
     _starting = true;
     try {
       await _ensurePermissionAndStream();
     } finally {
       _starting = false;
-      if (!_disposed && (_subscription == null || isStale)) {
+      if (!_disposed && _subscription == null) {
+        _scheduleRetry();
+      } else if (!_disposed && _lastUpdate != null && isStale) {
         _scheduleRetry();
       }
     }
@@ -110,6 +115,7 @@ class GpsSpeedService {
     }
 
     _listenForServiceChanges();
+    _startPermissionMonitor();
     if (_subscription != null) {
       await _subscription!.cancel();
       _subscription = null;
@@ -141,6 +147,22 @@ class GpsSpeedService {
     }
   }
 
+  void _startPermissionMonitor() {
+    _permissionMonitor ??= Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (_disposed || _starting) return;
+      final permission = await Geolocator.checkPermission();
+      if (_disposed) return;
+      final wasDenied = _permission == LocationPermission.denied ||
+          _permission == LocationPermission.deniedForever;
+      _permission = permission;
+      final granted = permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+      if (granted && (wasDenied || _subscription == null)) {
+        await start();
+      }
+    });
+  }
+
   void _listenForServiceChanges() {
     _serviceSubscription ??= Geolocator.getServiceStatusStream().listen((status) {
       if (_disposed) return;
@@ -159,7 +181,7 @@ class GpsSpeedService {
     _retryTimer = Timer(
       immediate ? const Duration(seconds: 2) : const Duration(seconds: 8),
       () {
-        if (!_disposed && (_subscription == null || isStale)) start();
+        if (!_disposed && (_subscription == null || (_lastUpdate != null && isStale))) start();
       },
     );
   }
@@ -285,6 +307,7 @@ class GpsSpeedService {
   void dispose() {
     _disposed = true;
     _retryTimer?.cancel();
+    _permissionMonitor?.cancel();
     _serviceSubscription?.cancel();
     _subscription?.cancel();
     _controller.close();
