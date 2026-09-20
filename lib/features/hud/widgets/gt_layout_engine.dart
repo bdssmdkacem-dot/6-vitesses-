@@ -20,11 +20,11 @@ class GtLayoutEngine {
 }
 
 class GtRouteMap extends StatelessWidget {
-  const GtRouteMap({super.key,required this.route,required this.position,required this.theme,this.nextManeuver,this.compact=false});
+  const GtRouteMap({super.key,required this.route,required this.position,required this.theme,this.nextManeuver,this.compact=false,this.layout=GtLayout.nav});
   final List<LatLng> route;
   final LatLng? position;
   final HudTheme theme;
-  final NavigationManeuver? nextManeuver; final bool compact;
+  final NavigationManeuver? nextManeuver; final bool compact; final GtLayout layout;
   @override
   Widget build(BuildContext context)=>Container(
     width: compact ? 190 : 200,
