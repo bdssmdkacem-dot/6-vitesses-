@@ -27,8 +27,8 @@ class GtRouteMap extends StatelessWidget {
   final NavigationManeuver? nextManeuver; final bool compact;
   @override
   Widget build(BuildContext context)=>Container(
-    width: compact ? 190 : 200,
-    height: compact ? 90 : 92,
+    width: compact ? 210 : 220,
+    height: compact ? 98 : 104,
     padding: const EdgeInsets.all(8),
     decoration: BoxDecoration(
       color: Colors.black.withValues(alpha:.58),
