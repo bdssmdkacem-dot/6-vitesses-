@@ -36,12 +36,14 @@ class SensorFusionService {
     this.imuFreshness = const Duration(milliseconds: 700),
     this.imuSpeedHold = const Duration(milliseconds: 1500),
     this.obdFreshness = const Duration(seconds: 2),
-  });
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final Duration gpsFreshness;
   final Duration imuFreshness;
   final Duration imuSpeedHold;
   final Duration obdFreshness;
+  final DateTime Function() _clock;
 
   GpsSample? _gps;
   MotionSample? _motion;
@@ -54,10 +56,10 @@ class SensorFusionService {
     if (!sample.isStale) {
       _gps = sample;
       _fusedSpeed = sample.speedKmh;
-      _fusedSpeedAt = DateTime.now();
+      _fusedSpeedAt = _clock();
     }
-    _gpsReceivedAt = DateTime.now();
-    return _compose(DateTime.now());
+    _gpsReceivedAt = _clock();
+    return _compose(_clock());
   }
 
   SensorFusionSample updateMotion(MotionSample sample) {
