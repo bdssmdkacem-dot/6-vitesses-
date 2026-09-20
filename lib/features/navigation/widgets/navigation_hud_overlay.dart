@@ -4,7 +4,7 @@ import '../traffic_sign_engine.dart';
 import '../../hud/models/hud_theme.dart';
 
 class NavigationHudOverlay extends StatelessWidget {
-  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message, required this.style, this.compact = false, this.showEta = true, this.showRoadName = true});
+  const NavigationHudOverlay({super.key, required this.state, required this.accent, required this.secondary, this.trafficSign, this.message, required this.style, this.compact = false, this.verticalOffset = 0, this.showEta = true, this.showRoadName = true});
   final NavigationState state;
   final Color accent;
   final Color secondary;
@@ -12,6 +12,7 @@ class NavigationHudOverlay extends StatelessWidget {
   final String? message;
   final HudGaugeStyle style;
   final bool compact, showEta, showRoadName;
+  final double verticalOffset;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,9 @@ class NavigationHudOverlay extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.only(right: 10, left: 8),
             child: Center(
-              child: Container(
+              child: Transform.translate(
+                offset: Offset(0, verticalOffset),
+                child: Container(
           constraints: BoxConstraints(minWidth: 0, maxWidth: compact ? 300 : 360),
           padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 8 : 10),
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: .58), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: .65))),
@@ -52,6 +55,7 @@ class NavigationHudOverlay extends StatelessWidget {
             ]),
           ]),
         ),
+                ),
               ),
             ),
           ),
