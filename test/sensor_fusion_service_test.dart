@@ -32,7 +32,7 @@ void main() {
     expect(sample.overallConfidence, greaterThan(.5));
   });
 
-  test('fresh OBD speed is preferred while IMU remains the acceleration source', () {
+  test('OBD telemetry is ignored while IMU remains the active acceleration source', () {
     final fusion = SensorFusionService();
     fusion.updateMotion(MotionSample(
       longitudinalAcceleration: 1.5,
@@ -42,15 +42,21 @@ void main() {
       axis: 0,
       noiseConfidence: 0.9,
     ));
-    final sample = fusion.updateObd(ObdTelemetry(
-      source: ObdTelemetrySource.obd,
-      vehicleSpeedKmh: 72,
-      timestamp: DateTime(2026, 1, 1),
-    ), t0);
-    expect(sample.source, SensorSource.fused);
-    expect(sample.speedKmh, 72);
+
+    final sample = fusion.updateObd(
+      ObdTelemetry(
+        source: ObdTelemetrySource.obd,
+        vehicleSpeedKmh: 72,
+        timestamp: t0,
+      ),
+      t0,
+    );
+
+    expect(sample.source, SensorSource.imu);
+    expect(sample.speedKmh, 0);
     expect(sample.longitudinalAcceleration, closeTo(1.5, 0.001));
-    expect(sample.speedConfidence, closeTo(0.98, 0.001));
+    expect(sample.speedConfidence, 0);
+    expect(sample.accelerationConfidence, closeTo(0.9, 0.001));
   });
 
   test('OBD failure falls back to GPS without breaking fusion', () {
@@ -64,13 +70,17 @@ void main() {
       speedConfidence: .95,
     ));
     expect(gps.speedKmh, 55);
-    final afterObdTimeout = fusion.current(t0.add(const Duration(seconds: 3)));
+
+    final afterObdTimeout =
+        fusion.current(t0.add(const Duration(seconds: 3)));
     expect(afterObdTimeout.source, SensorSource.gps);
     expect(afterObdTimeout.speedKmh, 55);
   });
 
   test('IMU briefly bridges a stale GPS stream without unbounded drift', () {
-    final fusion = SensorFusionService(gpsFreshness: const Duration(seconds: 1));
+    final fusion = SensorFusionService(
+      gpsFreshness: const Duration(seconds: 1),
+    );
     fusion.updateGps(GpsSample(
       speedKmh: 60,
       accuracyM: 6,
@@ -87,7 +97,8 @@ void main() {
       axis: 0,
       noiseConfidence: .9,
     ));
-    final sample = fusion.current(t0.add(const Duration(milliseconds: 1400)));
+    final sample =
+        fusion.current(t0.add(const Duration(milliseconds: 1400)));
     expect(sample.source, SensorSource.imu);
     expect(sample.speedKmh, closeTo(65.04, .2));
   });
