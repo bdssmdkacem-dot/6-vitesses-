@@ -9,7 +9,7 @@ void main() {
   final t0 = DateTime(2026, 1, 1);
 
   test('fused source combines fresh GPS and IMU confidence', () {
-    final fusion = SensorFusionService();
+    final fusion = SensorFusionService(clock: () => t0);
     fusion.updateMotion(MotionSample(
       longitudinalAcceleration: 1.2,
       lateralAcceleration: 0.1,
@@ -33,7 +33,7 @@ void main() {
   });
 
   test('OBD telemetry is ignored while IMU remains the active acceleration source', () {
-    final fusion = SensorFusionService();
+    final fusion = SensorFusionService(clock: () => t0);
     fusion.updateMotion(MotionSample(
       longitudinalAcceleration: 1.5,
       lateralAcceleration: 0.2,
@@ -60,7 +60,7 @@ void main() {
   });
 
   test('OBD failure falls back to GPS without breaking fusion', () {
-    final fusion = SensorFusionService();
+    final fusion = SensorFusionService(clock: () => t0);
     final gps = fusion.updateGps(GpsSample(
       speedKmh: 55,
       accuracyM: 5,
@@ -80,6 +80,7 @@ void main() {
   test('IMU briefly bridges a stale GPS stream without unbounded drift', () {
     final fusion = SensorFusionService(
       gpsFreshness: const Duration(seconds: 1),
+      clock: () => t0,
     );
     fusion.updateGps(GpsSample(
       speedKmh: 60,
