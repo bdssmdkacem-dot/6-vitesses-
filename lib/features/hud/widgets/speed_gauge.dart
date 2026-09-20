@@ -1,8 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/hud_theme.dart';
-import 'gt_layout_engine.dart';
-
 class SpeedGauge extends StatelessWidget {
   const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav});
   final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout;
