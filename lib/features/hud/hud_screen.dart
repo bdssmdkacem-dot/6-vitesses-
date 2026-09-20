@@ -365,6 +365,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               theme: _theme,
               nextManeuver: _navigationState!.nextManeuver,
               compact: gtLayout == GtLayout.touring,
+              layout: gtLayout,
             ),
           ),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
