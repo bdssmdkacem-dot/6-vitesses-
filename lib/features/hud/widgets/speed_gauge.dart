@@ -2,20 +2,20 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/hud_theme.dart';
 class SpeedGauge extends StatelessWidget {
-  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav,this.gForce=0,this.longitudinalAccel=0,this.gear=0});
-  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout; final double gForce,longitudinalAccel; final int gear;
+  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav,this.gForce=0,this.longitudinalAccel=0,this.gear=0,this.tripDistanceKm=0});
+  final double speed,maxSpeed,tripDistanceKm; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout; final double gForce,longitudinalAccel; final int gear;
   @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>TweenAnimationBuilder<double>(
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
       HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
-      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout,gForce:gForce,longitudinalAccel:longitudinalAccel,gear:gear),
+      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout,gForce:gForce,longitudinalAccel:longitudinalAccel,gear:gear,tripDistanceKm:tripDistanceKm),
       HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
       HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
     }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
-  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout,required this.gForce,required this.longitudinalAccel,required this.gear});
-  final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce,longitudinalAccel; final int gear;
+  const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth,required this.layout,required this.gForce,required this.longitudinalAccel,required this.gear,required this.tripDistanceKm});
+  final double speed,maxWidth,tripDistanceKm; final HudTheme theme; final String unitLabel; final GtLayout layout; final double gForce,longitudinalAccel; final int gear;
   @override Widget build(BuildContext context){
     final width=math.min(430.0,maxWidth*.52);
     final fontSize=math.min(126.0,math.max(82.0,width*.30));
@@ -30,15 +30,30 @@ class _DigitalGtSpeed extends StatelessWidget {
       ]));
     }
     if (layout == GtLayout.touring) {
-      return Container(width:360,height:128,padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(28),border:Border.all(color:theme.secondary.withValues(alpha:.45))),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-        SizedBox(width:54,height:100,child:CustomPaint(painter:_TouringGtBars(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
-        const SizedBox(width:10),
-        Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:68,fontWeight:FontWeight.w800,height:.8)),
-          Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:10,fontWeight:FontWeight.w800,letterSpacing:2)),
-          const SizedBox(height:3),Text('TOURING GT',style:TextStyle(color:theme.secondary.withValues(alpha:.7),fontSize:9,fontWeight:FontWeight.w700,letterSpacing:2)),
-        ]),
-        const SizedBox(width:16),
+      return Container(width:430,height:142,padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),decoration:BoxDecoration(
+        gradient:LinearGradient(colors:[Colors.black.withValues(alpha:.82),Colors.black.withValues(alpha:.48)]),
+        borderRadius:BorderRadius.circular(30),
+        border:Border.all(color:theme.secondary.withValues(alpha:.42)),
+        boxShadow:[BoxShadow(color:theme.accent.withValues(alpha:.08),blurRadius:22,spreadRadius:1)],
+      ),child:Row(children:[
+        SizedBox(width:48,height:108,child:CustomPaint(painter:_TouringGtBars(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
+        const SizedBox(width:12),
+        Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
+            Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:68,fontWeight:FontWeight.w800,height:.8,letterSpacing:-2)),
+            const SizedBox(width:7),
+            Padding(padding:const EdgeInsets.only(bottom:5),child:Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:9,fontWeight:FontWeight.w800,letterSpacing:1.5))),
+          ]),
+          const SizedBox(height:6),
+          Row(children:[
+            _TouringMetric(label:'GEAR',value:gear==0?'N':gear.toString(),theme:theme),
+            const SizedBox(width:14),
+            _TouringMetric(label:'TRIP',value:'${tripDistanceKm.toStringAsFixed(1)} km',theme:theme),
+            const SizedBox(width:14),
+            _TouringMetric(label:'MAX',value:'${maxSpeed.toStringAsFixed(0)}',theme:theme),
+          ]),
+        ])),
+        const SizedBox(width:12),
         _MiniGForceGauge(gForce:gForce,theme:theme),
       ]));
     }
@@ -81,6 +96,15 @@ class _SportAccelPainter extends CustomPainter {
     canvas.drawCircle(Offset(x,9),5,active);
   }
   @override bool shouldRepaint(covariant _SportAccelPainter old)=>old.accel!=accel||old.theme!=theme;
+}
+class _TouringMetric extends StatelessWidget {
+  const _TouringMetric({required this.label,required this.value,required this.theme});
+  final String label,value; final HudTheme theme;
+  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Text(label,style:TextStyle(color:theme.secondary.withValues(alpha:.7),fontSize:7,fontWeight:FontWeight.w800,letterSpacing:1.2)),
+    const SizedBox(height:1),
+    Text(value,style:TextStyle(color:theme.secondary,fontSize:10,fontWeight:FontWeight.w800)),
+  ]);
 }
 class _MiniGForceGauge extends StatelessWidget {
   const _MiniGForceGauge({required this.gForce,required this.theme});
