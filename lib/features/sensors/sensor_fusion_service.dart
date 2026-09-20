@@ -33,7 +33,7 @@ class SensorFusionService {
   SensorFusionService({
     this.gpsFreshness = const Duration(seconds: 4),
     this.imuFreshness = const Duration(milliseconds: 700),
-    this.imuSpeedHold = const Duration(milliseconds: 1500),
+    this.imuSpeedHold = const Duration(seconds: 3),
   });
 
   final Duration gpsFreshness;
