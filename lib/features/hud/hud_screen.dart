@@ -311,7 +311,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
     _theme=widget.settings.theme;_style=widget.settings.gauge;_mirror=widget.settings.mirror;
     final unitLabel=widget.settings.unit==SpeedUnit.kmh?'km/h':'mph',showRpm=widget.settings.showRpm&&_theme.showRpm,compact=widget.settings.compact;
     final gtEnabled=_style==HudGaugeStyle.digitalGt;
-    final gtSpec=GtLayoutEngine.spec(widget.settings.gtLayout);
+    final gtLayout=widget.settings.gtLayout;final gtSpec=GtLayoutEngine.spec(gtLayout);
     final displayGear=_estimatedGear(_speed);
     final navigationActive=_session.active&&_navigationState!=null;
     final hudLayer=Stack(fit:StackFit.expand,children:[
@@ -350,7 +350,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
           Text('${_sourceLabel(_fusion.source)} ${(_fusion.overallConfidence*100).round()}%',
             style:TextStyle(color:_sourceColor(_fusion.source,_theme),fontSize:9,fontWeight:FontWeight.w800)),
         ])),
-        Positioned(right:120,top:12,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
+        Positioned(right:120,top:58,child:GearIndicator(gear:displayGear,theme:_theme,enabled:true)),
         if(!compact || (gtEnabled&&gtSpec.showGForce))Positioned(left:18,bottom:14,child:Row(children:[_Metric('ACCEL','${_longitudinalAccel.toStringAsFixed(1)} m/s²'),const SizedBox(width:18),AccelerationBar(value:_longitudinalAccel,theme:_theme),const SizedBox(width:18),_Metric('G-FORCE','${(_totalAccel/9.80665).toStringAsFixed(2)} G'),const SizedBox(width:18),_Metric('MAX','${widget.settings.toDisplaySpeed(_maxSpeed).toStringAsFixed(0)} $unitLabel'),if(_session.active&&(!gtEnabled||gtSpec.showTrip))...[const SizedBox(width:18),_Metric('TRIP','${_session.distanceKm.toStringAsFixed(1)} km')]])),
         if(!compact)Positioned(right:18,bottom:14,child:Row(children:[_Metric('BRAKE MAX','${_maxBraking.toStringAsFixed(1)} m/s²')])),
         if (gtEnabled && gtSpec.showMap && navigationActive)
@@ -364,7 +364,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               position: _lastPosition,
               theme: _theme,
               nextManeuver: _navigationState!.nextManeuver,
-              compact: widget.settings.gtLayout == GtLayout.touring,
+              compact: gtLayout == GtLayout.touring,
             ),
           ),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
