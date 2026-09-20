@@ -29,7 +29,7 @@ class GpsSpeedService {
   GpsSpeedService({
     this.windowSize = 5,
     this.maxAccuracyMeters = 500,
-    this.staleAfter = const Duration(seconds: 4),
+    this.staleAfter = const Duration(seconds: 10),
     this.maxJumpSpeedKmh = 320,
   });
 
@@ -55,7 +55,7 @@ class GpsSpeedService {
   bool get isStale =>
       _lastUpdate == null ||
       DateTime.now().difference(_lastUpdate!) > staleAfter;
-  String get status => _status;
+  String get status => isStale && _lastUpdate != null ? 'SIGNAL LOST' : _status;
   String? get lastError => _lastError;
   LocationPermission get permission => _permission;
   int get jumpRejections => _jumpRejections;
