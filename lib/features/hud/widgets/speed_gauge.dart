@@ -21,7 +21,7 @@ class _DigitalGtSpeed extends StatelessWidget {
     final width=math.min(430.0,maxWidth*.52);
     final fontSize=math.min(126.0,math.max(82.0,width*.30));
     return SizedBox(width:width,child:Column(mainAxisSize:MainAxisSize.min,children:[
-      Text('6 VITESSES',style:TextStyle(color:theme.secondary.withValues(alpha:.78),fontSize:10,fontWeight:FontWeight.w800,letterSpacing:4)),
+      Text('6 VITESSES GT',style:TextStyle(color:theme.secondary.withValues(alpha:.78),fontSize:10,fontWeight:FontWeight.w800,letterSpacing:4)),
       const SizedBox(height:5),
       Stack(alignment:Alignment.center,children:[
         SizedBox(height:fontSize*.88,width:width,child:CustomPaint(painter:_DigitalGtArcPainter(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
