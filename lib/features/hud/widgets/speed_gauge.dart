@@ -1,24 +1,44 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/hud_theme.dart';
+import 'gt_layout_engine.dart';
 
 class SpeedGauge extends StatelessWidget {
-  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true});
-  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate;
+  const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true,this.gtLayout=GtLayout.nav});
+  final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate; final GtLayout gtLayout;
   @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>TweenAnimationBuilder<double>(
     tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
     builder:(context,value,_)=>switch(style){
       HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
-      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth),
+      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth,layout:gtLayout),
       HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
       HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
     }));
 }
 class _DigitalGtSpeed extends StatelessWidget {
   const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth});
-  final double speed,maxWidth; final HudTheme theme; final String unitLabel;
+  final double speed,maxWidth; final HudTheme theme; final String unitLabel; final GtLayout layout;
   @override Widget build(BuildContext context){
     final width=math.min(430.0,maxWidth*.52);
+    final fontSize=math.min(126.0,math.max(82.0,width*.30));
+    if (layout == GtLayout.sport) {
+      return SizedBox(width:width,height:150,child:Stack(alignment:Alignment.center,children:[
+        Positioned.fill(child:CustomPaint(painter:_SportGtPainter(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
+        Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:fontSize*1.08,fontWeight:FontWeight.w900,height:.82,letterSpacing:-5)),
+        Positioned(bottom:4,child:Text('SPORT GT',style:TextStyle(color:theme.secondary,fontSize:11,fontWeight:FontWeight.w900,letterSpacing:2))),
+      ]));
+    }
+    if (layout == GtLayout.touring) {
+      return Container(width:300,height:128,padding:const EdgeInsets.symmetric(horizontal:22,vertical:12),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.55),borderRadius:BorderRadius.circular(28),border:Border.all(color:theme.secondary.withValues(alpha:.45))),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+        SizedBox(width:62,height:100,child:CustomPaint(painter:_TouringGtBars(progress:(speed/240.0).clamp(0.0,1.0).toDouble(),theme:theme))),
+        const SizedBox(width:16),
+        Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(speed.toStringAsFixed(0),style:TextStyle(color:theme.accent,fontSize:72,fontWeight:FontWeight.w800,height:.8)),
+          Text(unitLabel.toUpperCase(),style:TextStyle(color:theme.secondary,fontSize:11,fontWeight:FontWeight.w800,letterSpacing:2)),
+          const SizedBox(height:4),Text('TOURING GT',style:TextStyle(color:theme.secondary.withValues(alpha:.7),fontSize:9,fontWeight:FontWeight.w700,letterSpacing:2)),
+        ]),
+      ]));
+    }
     final fontSize=math.min(126.0,math.max(82.0,width*.30));
     return SizedBox(width:width,child:Column(mainAxisSize:MainAxisSize.min,children:[
       Text('6 VITESSES GT',style:TextStyle(color:theme.secondary.withValues(alpha:.78),fontSize:10,fontWeight:FontWeight.w800,letterSpacing:4)),
@@ -130,4 +150,26 @@ class _GaugePainter extends CustomPainter {
     for(var i=0;i<=12;i++){final angle=math.pi*.75+math.pi*1.5*i/12;final a=Offset(center.dx+math.cos(angle)*(radius-4),center.dy+math.sin(angle)*(radius-4));final b=Offset(center.dx+math.cos(angle)*(radius-14),center.dy+math.sin(angle)*(radius-14));canvas.drawLine(a,b,tick);}
   }
   @override bool shouldRepaint(covariant _GaugePainter o)=>o.value!=value||o.theme!=theme;
+}
+
+class _SportGtPainter extends CustomPainter {
+  const _SportGtPainter({required this.progress,required this.theme});
+  final double progress; final HudTheme theme;
+  @override void paint(Canvas canvas,Size size){
+    final p=Paint()..style=PaintingStyle.stroke..strokeWidth=9..strokeCap=StrokeCap.square..color=theme.secondary.withValues(alpha:.16);
+    final a=Paint()..style=PaintingStyle.stroke..strokeWidth=9..strokeCap=StrokeCap.square..color=theme.accent;
+    final rect=Rect.fromLTWH(8,12,size.width-16,size.height-28);
+    canvas.drawArc(rect,math.pi*1.05,math.pi*.9,false,p);
+    canvas.drawArc(rect,math.pi*1.05,math.pi*.9*progress,false,a);
+  }
+  @override bool shouldRepaint(covariant _SportGtPainter old)=>old.progress!=progress||old.theme!=theme;
+}
+class _TouringGtBars extends CustomPainter {
+  const _TouringGtBars({required this.progress,required this.theme});
+  final double progress; final HudTheme theme;
+  @override void paint(Canvas canvas,Size size){
+    final filled=(progress*8).ceil();
+    for(var i=0;i<8;i++){final h=8+i*2.2;final rect=Rect.fromLTWH(4,size.height-10-h,12,h);canvas.drawRRect(RRect.fromRectAndRadius(rect,const Radius.circular(4)),Paint()..color=(i<filled?theme.accent:theme.secondary.withValues(alpha:.18)));}
+  }
+  @override bool shouldRepaint(covariant _TouringGtBars old)=>old.progress!=progress||old.theme!=theme;
 }
