@@ -32,7 +32,7 @@ class SensorFusionSample {
 
 class SensorFusionService {
   SensorFusionService({
-    this.gpsFreshness = const Duration(seconds: 2),
+    this.gpsFreshness = const Duration(seconds: 4),
     this.imuFreshness = const Duration(milliseconds: 700),
     this.imuSpeedHold = const Duration(milliseconds: 1500),
     this.obdFreshness = const Duration(seconds: 2),
@@ -166,8 +166,8 @@ class SensorFusionService {
       } else {
         source = SensorSource.unavailable;
       }
-    } else if (source == SensorSource.fused && overall < .25) {
-      source = SensorSource.gps;
+    } else if (gpsFresh && overall < .25) {
+      source = imuFresh ? SensorSource.fused : SensorSource.gps;
     }
 
     return SensorFusionSample(
