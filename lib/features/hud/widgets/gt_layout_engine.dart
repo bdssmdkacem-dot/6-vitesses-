@@ -27,13 +27,18 @@ class GtRouteMap extends StatelessWidget {
   final NavigationManeuver? nextManeuver; final bool compact; final GtLayout layout;
   @override
   Widget build(BuildContext context)=>Container(
-    width: compact ? 190 : 200,
-    height: compact ? 90 : 92,
-    padding: const EdgeInsets.all(8),
+    width: layout == GtLayout.nav ? 220 : layout == GtLayout.touring ? 244 : 188,
+    height: layout == GtLayout.nav ? 104 : layout == GtLayout.touring ? 78 : 88,
+    padding: EdgeInsets.all(layout == GtLayout.touring ? 6 : 8),
     decoration: BoxDecoration(
-      color: Colors.black.withValues(alpha:.58),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color:theme.secondary.withValues(alpha:.42)),
+      color: Colors.black.withValues(alpha: layout == GtLayout.touring ? .72 : .58),
+      borderRadius: BorderRadius.circular(
+        layout == GtLayout.nav ? 12 : layout == GtLayout.touring ? 38 : 8,
+      ),
+      border: Border.all(
+        color: theme.secondary.withValues(alpha: layout == GtLayout.touring ? .7 : .42),
+        width: layout == GtLayout.touring ? 1.5 : 1,
+      ),
     ),
     child: CustomPaint(
       painter:_GtRoutePainter(
