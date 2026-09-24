@@ -5,14 +5,12 @@ import '../models/hud_theme.dart';
 class SpeedGauge extends StatelessWidget {
   const SpeedGauge({super.key,required this.speed,required this.maxSpeed,required this.style,required this.theme,this.unitLabel='km/h',this.animate=true});
   final double speed,maxSpeed; final HudGaugeStyle style; final HudTheme theme; final String unitLabel; final bool animate;
-  @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>TweenAnimationBuilder<double>(
-    tween:Tween(begin:speed,end:speed),duration:animate?const Duration(milliseconds:260):Duration.zero,curve:Curves.easeOutCubic,
-    builder:(context,value,_)=>switch(style){
-      HudGaugeStyle.digital=>_DigitalSpeed(speed:value,theme:theme,unitLabel:unitLabel),
-      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:value,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth),
-      HudGaugeStyle.linear=>_LinearSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
-      HudGaugeStyle.circular=>_CircularSpeed(speed:value,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:animate,maxWidth:constraints.maxWidth),
-    }));
+  @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,constraints)=>switch(style){
+      HudGaugeStyle.digital=>_DigitalSpeed(speed:speed,theme:theme,unitLabel:unitLabel),
+      HudGaugeStyle.digitalGt=>_DigitalGtSpeed(speed:speed,theme:theme,unitLabel:unitLabel,maxWidth:constraints.maxWidth),
+      HudGaugeStyle.linear=>_LinearSpeed(speed:speed,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:false,maxWidth:constraints.maxWidth),
+      HudGaugeStyle.circular=>_CircularSpeed(speed:speed,maxSpeed:maxSpeed,theme:theme,unitLabel:unitLabel,animate:false,maxWidth:constraints.maxWidth),
+    });
 }
 class _DigitalGtSpeed extends StatelessWidget {
   const _DigitalGtSpeed({required this.speed,required this.theme,required this.unitLabel,required this.maxWidth});
