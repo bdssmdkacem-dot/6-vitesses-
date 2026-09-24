@@ -15,9 +15,16 @@ class GpsSample {
     this.headingDegrees = 0,
     this.speedConfidence = 0,
     this.jumpRejected = false,
+    this.rawSpeedKmh = 0,
+    this.speedAccuracyMps = double.infinity,
+    this.sampleAgeMs = 0,
+    this.updateIntervalMs = 0,
+    this.filterLatencyMs = 0,
   });
 
   final double speedKmh, accuracyM, longitudinalAcceleration;
+  final double rawSpeedKmh, speedAccuracyMps;
+  final int sampleAgeMs, updateIntervalMs, filterLatencyMs;
   final LatLng? position;
   final double headingDegrees;
   final DateTime timestamp;
@@ -266,7 +273,9 @@ class GpsSpeedService {
     if (_disposed || _controller.isClosed) return;
     _controller.add(
       GpsSample(
-        speedKmh: _window.isEmpty ? 0 : _median(_window),
+        speedKmh: _filteredSpeedKmh ?? 0,
+        rawSpeedKmh: _filteredSpeedKmh ?? 0,
+        speedAccuracyMps: double.infinity,
         accuracyM: double.infinity,
         longitudinalAcceleration: 0,
         timestamp: DateTime.now(),
