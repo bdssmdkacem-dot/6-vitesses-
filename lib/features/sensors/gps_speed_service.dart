@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -31,12 +32,14 @@ class GpsSpeedService {
     this.maxAccuracyMeters = 100,
     this.staleAfter = const Duration(seconds: 4),
     this.maxJumpSpeedKmh = 320,
+    this.maxSpeedAccuracyMps = 15,
   });
 
   final int windowSize;
   final double maxAccuracyMeters;
   final Duration staleAfter;
   final double maxJumpSpeedKmh;
+  final double maxSpeedAccuracyMps;
 
   final ListQueue<double> _window = ListQueue<double>();
   Position? _previous;
@@ -50,6 +53,7 @@ class GpsSpeedService {
   String _status = 'STARTING';
   String? _lastError;
   int _jumpRejections = 0;
+  double? _filteredSpeedKmh;
 
   Stream<GpsSample> get samples => _controller.stream;
   bool get isStale =>
@@ -211,32 +215,42 @@ class GpsSpeedService {
 
     final now = position.timestamp;
     final rawSpeed = (position.speed * 3.6).clamp(0.0, 400.0).toDouble();
-    _window.addLast(rawSpeed);
-    while (_window.length > windowSize) {
-      _window.removeFirst();
-    }
-    final speed = _median(_window);
-    var acceleration = 0.0;
-    if (previous != null) {
-      final dt = now.difference(previous.timestamp).inMilliseconds / 1000.0;
-      if (dt >= 0.2 && dt <= 10) {
-        acceleration = ((rawSpeed - previous.speed * 3.6) / dt / 3.6)
+    final speedAccuracyMps = position.speedAccuracy.isFinite
+        ? position.speedAccuracy
+        : double.infinity;
+    final acceleration = previous == null || updateIntervalMs < 200
+        ? 0.0
+        : ((rawSpeed - previous.speed * 3.6) /
+                (updateIntervalMs / 1000.0) /
+                3.6)
             .clamp(-12.0, 12.0)
             .toDouble();
-      }
-    }
-
+    final speed = _adaptiveFilter(
+      rawSpeedKmh: rawSpeed,
+      speedAccuracyMps: speedAccuracyMps,
+      accelerationMps2: acceleration,
+      dtSeconds: updateIntervalMs > 0 ? updateIntervalMs / 1000.0 : 0,
+    );
     _previous = position;
     _lastUpdate = now;
     _status = 'LOCKED';
     _lastError = null;
     _retryTimer?.cancel();
 
-    final speedConfidence =
+    final locationConfidence =
         (1.0 - (position.accuracy / maxAccuracyMeters)).clamp(0.0, 1.0);
+    final speedAccuracyConfidence = speedAccuracyMps.isFinite
+        ? (1.0 - speedAccuracyMps / maxSpeedAccuracyMps).clamp(0.0, 1.0)
+        : 0.0;
+    final speedConfidence =
+        (locationConfidence * .55 + speedAccuracyConfidence * .45)
+            .clamp(0.0, 1.0)
+            .toDouble();
     _controller.add(
       GpsSample(
         speedKmh: speed,
+        rawSpeedKmh: rawSpeed,
+        speedAccuracyMps: speedAccuracyMps,
         accuracyM: position.accuracy,
         longitudinalAcceleration: acceleration,
         timestamp: now,
@@ -264,6 +278,45 @@ class GpsSpeedService {
     );
   }
 
+  double _adaptiveFilter({
+    required double rawSpeedKmh,
+    required double speedAccuracyMps,
+    required double accelerationMps2,
+    required double dtSeconds,
+  }) {
+    final previous = _filteredSpeedKmh;
+    if (previous == null || dtSeconds <= 0 || dtSeconds > 2) {
+      _filteredSpeedKmh = rawSpeedKmh;
+      return rawSpeedKmh;
+    }
+
+    final confidence = speedAccuracyMps.isFinite
+        ? (1.0 - speedAccuracyMps / maxSpeedAccuracyMps).clamp(0.0, 1.0)
+        : 0.35;
+    final delta = rawSpeedKmh - previous;
+    final magnitude = delta.abs();
+
+    var alpha = .28 + confidence * .22;
+    if (magnitude >= 8) alpha += .25;
+    if (magnitude >= 20) alpha += .15;
+    if (accelerationMps2.abs() >= 1.5) alpha += .12;
+    if (accelerationMps2 < -1.0) alpha += .12;
+    if (delta < 0) alpha += .08;
+    if (!speedAccuracyMps.isFinite) alpha -= .08;
+    alpha = alpha.clamp(.20, .92).toDouble();
+
+    // Time-aware convergence avoids turning a slow GPS stream into
+    // an additional artificial delay.
+    final timeCompensation = (dtSeconds / .5).clamp(.6, 1.8);
+    alpha = (1.0 - mathPow(1.0 - alpha, timeCompensation))
+        .clamp(.20, .98)
+        .toDouble();
+
+    _filteredSpeedKmh =
+        (previous + delta * alpha).clamp(0.0, 400.0).toDouble();
+    return _filteredSpeedKmh!;
+  }
+
   double _median(Iterable<double> values) {
     final sorted = values.toList()..sort();
     if (sorted.isEmpty) return 0;
@@ -283,3 +336,8 @@ class GpsSpeedService {
 }
 
 double mathMax(double a, double b) => a > b ? a : b;
+
+double mathPow(double base, double exponent) {
+  if (exponent == 1) return base;
+  return math.exp(math.log(base) * exponent);
+}
