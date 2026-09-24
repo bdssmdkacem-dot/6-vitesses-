@@ -190,6 +190,7 @@ class GpsSpeedService {
 
   void _onPosition(Position position) {
     if (_disposed) return;
+    final processingWatch = Stopwatch()..start();
     if (position.timestamp.isAfter(DateTime.now().add(const Duration(minutes: 1)))) {
       return;
     }
@@ -253,6 +254,7 @@ class GpsSpeedService {
         (locationConfidence * .55 + speedAccuracyConfidence * .45)
             .clamp(0.0, 1.0)
             .toDouble();
+    processingWatch.stop();
     _controller.add(
       GpsSample(
         speedKmh: speed,
