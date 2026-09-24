@@ -222,6 +222,11 @@ class GpsSpeedService {
     }
 
     final now = position.timestamp;
+    final sampleAgeMs = DateTime.now().difference(now).inMilliseconds;
+    if (sampleAgeMs < 0 || sampleAgeMs > staleAfter.inMilliseconds) return;
+    final updateIntervalMs = previous == null
+        ? 0
+        : position.timestamp.difference(previous.timestamp).inMilliseconds;
     final rawSpeed = (position.speed * 3.6).clamp(0.0, 400.0).toDouble();
     final speedAccuracyMps = position.speedAccuracy.isFinite
         ? position.speedAccuracy
@@ -267,6 +272,9 @@ class GpsSpeedService {
         position: LatLng(position.latitude, position.longitude),
         headingDegrees: position.heading,
         speedConfidence: speedConfidence,
+        sampleAgeMs: sampleAgeMs,
+        updateIntervalMs: updateIntervalMs,
+        filterLatencyMs: processingWatch.elapsedMicroseconds ~/ 1000,
       ),
     );
   }
