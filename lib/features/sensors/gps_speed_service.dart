@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -48,7 +47,6 @@ class GpsSpeedService {
   final double maxJumpSpeedKmh;
   final double maxSpeedAccuracyMps;
 
-  final ListQueue<double> _window = ListQueue<double>();
   Position? _previous;
   DateTime? _lastUpdate;
   StreamSubscription<Position>? _subscription;
@@ -336,14 +334,6 @@ class GpsSpeedService {
     return _filteredSpeedKmh!;
   }
 
-  double _median(Iterable<double> values) {
-    final sorted = values.toList()..sort();
-    if (sorted.isEmpty) return 0;
-    final middle = sorted.length ~/ 2;
-    return sorted.length.isOdd
-        ? sorted[middle]
-        : (sorted[middle - 1] + sorted[middle]) / 2;
-  }
 
   void dispose() {
     _disposed = true;
