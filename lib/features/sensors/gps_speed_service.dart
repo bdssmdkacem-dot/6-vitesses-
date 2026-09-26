@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io' show Platform;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -27,19 +28,26 @@ class GpsSample {
 
 class GpsSpeedService {
   GpsSpeedService({
-    this.windowSize = 5,
+    this.windowSize = 3,
     this.maxAccuracyMeters = 100,
     this.staleAfter = const Duration(seconds: 4),
     this.maxJumpSpeedKmh = 320,
+    this.brakingDropThresholdKmh = 8,
+    this.gpsUpdateInterval = const Duration(milliseconds: 400),
   });
 
   final int windowSize;
   final double maxAccuracyMeters;
   final Duration staleAfter;
   final double maxJumpSpeedKmh;
+  final double brakingDropThresholdKmh;
+  final Duration gpsUpdateInterval;
 
   final ListQueue<double> _window = ListQueue<double>();
   Position? _previous;
+  double? _previousFilteredSpeed;
+  DateTime? _previousFilteredTime;
+  int _consecutiveDrops = 0;
   DateTime? _lastUpdate;
   StreamSubscription<Position>? _subscription;
   StreamSubscription<ServiceStatus>? _serviceSubscription;
@@ -108,10 +116,7 @@ class GpsSpeedService {
     await _subscription?.cancel();
     _subscription = null;
     _status = 'WAITING FOR FIX';
-    const settings = LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 0,
-    );
+    final settings = _locationSettings();
     _subscription = Geolocator.getPositionStream(locationSettings: settings).listen(
       _onPosition,
       onError: (Object error) {
@@ -132,6 +137,21 @@ class GpsSpeedService {
       _lastError = error.toString();
       _status = 'FIX ERROR';
     }
+  }
+
+  LocationSettings _locationSettings() {
+    if (Platform.isAndroid) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+        intervalDuration: gpsUpdateInterval,
+        forceLocationManager: false,
+      );
+    }
+    return LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0,
+    );
   }
 
   void _listenForServiceChanges() {
@@ -211,20 +231,37 @@ class GpsSpeedService {
 
     final now = position.timestamp;
     final rawSpeed = (position.speed * 3.6).clamp(0.0, 400.0).toDouble();
+
+    final lastFiltered = _window.isEmpty ? rawSpeed : _median(_window);
+    if (lastFiltered - rawSpeed >= brakingDropThresholdKmh) {
+      _consecutiveDrops++;
+      if (_consecutiveDrops >= 2) {
+        _window.clear();
+        _consecutiveDrops = 0;
+      }
+    } else {
+      _consecutiveDrops = 0;
+    }
+
     _window.addLast(rawSpeed);
     while (_window.length > windowSize) {
       _window.removeFirst();
     }
     final speed = _median(_window);
+
     var acceleration = 0.0;
-    if (previous != null) {
-      final dt = now.difference(previous.timestamp).inMilliseconds / 1000.0;
+    final previousFilteredSpeed = _previousFilteredSpeed;
+    final previousFilteredTime = _previousFilteredTime;
+    if (previousFilteredSpeed != null && previousFilteredTime != null) {
+      final dt = now.difference(previousFilteredTime).inMilliseconds / 1000.0;
       if (dt >= 0.2 && dt <= 10) {
-        acceleration = ((rawSpeed - previous.speed * 3.6) / dt / 3.6)
+        acceleration = ((speed - previousFilteredSpeed) / dt / 3.6)
             .clamp(-12.0, 12.0)
             .toDouble();
       }
     }
+    _previousFilteredSpeed = speed;
+    _previousFilteredTime = now;
 
     _previous = position;
     _lastUpdate = now;
