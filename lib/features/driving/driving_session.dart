@@ -12,6 +12,7 @@ class DrivingSession extends ChangeNotifier {
   double _maxSpeed = 0;
   double _maxAcceleration = 0;
   double _maxBraking = 0;
+  double _lastSampleSpeedKmh = 0;
   int _samples = 0;
   Timer? _timer;
 
@@ -28,6 +29,7 @@ class DrivingSession extends ChangeNotifier {
     _active = true;
     _startedAt = DateTime.now();
     _lastSampleAt = null;
+    _lastSampleSpeedKmh = 0;
     _elapsed = Duration.zero;
     _distanceKm = 0;
     _speedSum = 0;
@@ -55,10 +57,12 @@ class DrivingSession extends ChangeNotifier {
     if (previous != null) {
       final dt = now.difference(previous).inMilliseconds / 1000.0;
       if (dt > 0 && dt <= 10) {
-        _distanceKm += speedKmh * dt / 3600.0;
+        final avgSpeedKmh = (speedKmh + _lastSampleSpeedKmh) / 2;
+        _distanceKm += avgSpeedKmh * dt / 3600.0;
       }
     }
     _lastSampleAt = now;
+    _lastSampleSpeedKmh = speedKmh;
     _samples++;
     _speedSum += speedKmh;
     if (speedKmh > _maxSpeed) _maxSpeed = speedKmh;

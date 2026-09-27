@@ -308,3 +308,10 @@ Three related driving-mode issues, all in the navigation HUD:
 New tests: `activeSpeedLimit reports the most recently passed maxspeed sign`
 and `activeSpeedLimit returns null with no route context` in
 `test/traffic_sign_engine_test.dart`.
+
+
+## Driving-session accuracy follow-up
+
+- Trip distance now uses trapezoidal integration between consecutive GPS speed samples.
+- The calculation preserves the existing timestamp-based interval guard and does not alter GPS permissions, OBD architecture, or Android signing.
+- The current adaptive GPS filter from this PR is preserved; the older median-window fast-path was not copied over it.
