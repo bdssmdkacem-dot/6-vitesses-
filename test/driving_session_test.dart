@@ -14,6 +14,15 @@ void main() {
     );
 
     expect(session.distanceKm, closeTo(0.1, 0.000001));
+
+    // During acceleration, trapezoidal integration uses the mean of the
+    // consecutive samples instead of charging the full current speed.
+    session.addSample(
+      speedKmh: 36,
+      acceleration: 2,
+      timestamp: t0.add(const Duration(seconds: 6)),
+    );
+    expect(session.distanceKm, closeTo(0.115, 0.000001));
     expect(session.maxAcceleration, 2);
     expect(session.maxBraking, 0);
     session.dispose();

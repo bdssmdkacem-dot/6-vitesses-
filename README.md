@@ -280,3 +280,10 @@ https://developer.android.com/develop/ui/views/launch/splash-screen
 **Repository:** `bdssmdkacem-dot/6-vitesses-`
 
 **Product:** 6 VITESSES — DIGITAL GT
+
+
+## Driving-session accuracy follow-up
+
+- Trip distance now uses trapezoidal integration between consecutive GPS speed samples.
+- The calculation preserves the existing timestamp-based interval guard and does not alter GPS permissions, OBD architecture, or Android signing.
+- The current adaptive GPS filter already responds symmetrically to sudden speed increases and decreases; the older median-window fast-path from the ZIP was therefore not copied over the active adaptive filter.
