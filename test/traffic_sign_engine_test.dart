@@ -90,6 +90,39 @@ void main() {
     expect(result, isEmpty);
   });
 
+  test('activeSpeedLimit reports the most recently passed maxspeed sign', () {
+    final engine = TrafficSignEngine();
+    const route = [
+      LatLng(34.0200, -6.8416),
+      LatLng(34.0400, -6.8416),
+    ];
+    final limit = engine.activeSpeedLimit(
+      route: route,
+      vehicleRouteProgressMeters: 1200,
+      signs: const [
+        // Passed already (behind current progress) — should be reported.
+        TrafficSign(type: TrafficSignType.speedLimit, position: LatLng(34.0210, -6.8416), value: 50),
+        // Even further behind — the closer/most recent one wins.
+        TrafficSign(type: TrafficSignType.speedLimit, position: LatLng(34.0205, -6.8416), value: 30),
+        // Still ahead — must not be reported as active yet.
+        TrafficSign(type: TrafficSignType.speedLimit, position: LatLng(34.0390, -6.8416), value: 90),
+      ],
+    );
+    expect(limit, 50);
+  });
+
+  test('activeSpeedLimit returns null with no route context', () {
+    final engine = TrafficSignEngine();
+    final limit = engine.activeSpeedLimit(
+      route: const [],
+      vehicleRouteProgressMeters: 100,
+      signs: const [
+        TrafficSign(type: TrafficSignType.speedLimit, position: LatLng(34.0210, -6.8416), value: 50),
+      ],
+    );
+    expect(limit, isNull);
+  });
+
   test('keeps roundabout signs ahead on the active route', () {
     final engine = TrafficSignEngine();
     final result = engine.findRelevant(
