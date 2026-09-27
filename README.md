@@ -281,9 +281,37 @@ https://developer.android.com/develop/ui/views/launch/splash-screen
 
 **Product:** 6 VITESSES — DIGITAL GT
 
+## Map tracking, turn signage & road speed limit (this update)
+
+Three related driving-mode issues, all in the navigation HUD:
+
+1. **Mini-map didn't track the drive.** The in-HUD map (`GtRouteMap`) always
+   fit the *entire* route into view, so on any real route it stayed zoomed
+   out and never followed the car. It now switches to a **"track-up" follow
+   mode** once moving (≥5 km/h): the vehicle is anchored near the bottom of
+   the widget, the road rotates so the direction of travel always points
+   up, and only a local look-ahead window (160 m ahead / 55 m behind) is
+   shown — the way turn-by-turn nav apps behave. It falls back to the old
+   whole-route overview while stationary, when heading isn't reliable.
+2. **Turn/traffic-sign badge was dead code.** `NavigationHudOverlay` already
+   had a `trafficSign` slot to show the nearest sign next to the maneuver
+   card, but the HUD screen never passed one in, so it never rendered.
+   That's now wired up.
+3. **No persistent road speed limit.** Speed-limit tags only ever showed up
+   in the transient "upcoming signs" rail and vanished the instant the
+   vehicle passed the sign, even though the limit still applied.
+   `TrafficSignEngine.activeSpeedLimit()` now finds the most recently
+   *passed* maxspeed tag along the route, and a permanent circular
+   speed-limit badge stays on the HUD for that whole stretch of road,
+   turning red if the driver goes more than 5 km/h over it.
+
+New tests: `activeSpeedLimit reports the most recently passed maxspeed sign`
+and `activeSpeedLimit returns null with no route context` in
+`test/traffic_sign_engine_test.dart`.
+
 
 ## Driving-session accuracy follow-up
 
 - Trip distance now uses trapezoidal integration between consecutive GPS speed samples.
 - The calculation preserves the existing timestamp-based interval guard and does not alter GPS permissions, OBD architecture, or Android signing.
-- The current adaptive GPS filter already responds symmetrically to sudden speed increases and decreases; the older median-window fast-path from the ZIP was therefore not copied over the active adaptive filter.
+- The current adaptive GPS filter from this PR is preserved; the older median-window fast-path was not copied over it.

@@ -61,6 +61,42 @@ class TrafficSignEngine {
     return result;
   }
 
+  /// The speed limit that currently applies to the vehicle, as opposed to
+  /// [findRelevant] which only reports signs still ahead. A maxspeed tag
+  /// stays in force from the point it appears until the next one, so this
+  /// looks for the most recently passed maxspeed way along the route
+  /// instead of only ones the vehicle hasn't reached yet — otherwise the
+  /// limit disappeared from the HUD the moment the vehicle drove past it.
+  int? activeSpeedLimit({
+    required Iterable<TrafficSign> signs,
+    required List<LatLng> route,
+    required double? vehicleRouteProgressMeters,
+    double aheadToleranceMeters = 30,
+    double maxLookbackMeters = 3000,
+  }) {
+    if (route.length < 2 || vehicleRouteProgressMeters == null) return null;
+    TrafficSign? best;
+    var bestAlong = -1.0;
+    for (final sign in signs) {
+      if (sign.type != TrafficSignType.speedLimit || sign.value == null) {
+        continue;
+      }
+      final match = _routeMatch(sign.position, route);
+      if (match.distanceMeters > routeToleranceMeters) continue;
+      if (match.alongMeters > vehicleRouteProgressMeters + aheadToleranceMeters) {
+        continue;
+      }
+      if (vehicleRouteProgressMeters - match.alongMeters > maxLookbackMeters) {
+        continue;
+      }
+      if (match.alongMeters > bestAlong) {
+        bestAlong = match.alongMeters;
+        best = sign;
+      }
+    }
+    return best?.value;
+  }
+
   int _priority(TrafficSignType type) {
     switch (type) {
       case TrafficSignType.stop: return 0;

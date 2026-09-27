@@ -47,6 +47,7 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
   LatLng? _lastPosition;
   double _lastHeading = 0;
   List<RelevantTrafficSign> _relevantTrafficSigns = const [];
+  int? _activeSpeedLimitKmh;
   
   String? _navigationMessage;
   OsrmRoute? _navigationRoute;
@@ -167,8 +168,22 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
       final signs = await _trafficService.nearby(center: position);
       final relevant = _trafficEngine.findRelevant(vehiclePosition: position, headingDegrees: _lastHeading, vehicleSpeedKmh: _speed, signs: signs, route: _navigationRoute?.geometry,
         vehicleRouteProgressMeters: _navigationState?.routeProgressMeters);
+      // Unlike findRelevant (signs still ahead), the active limit is the
+      // most recently passed maxspeed tag, so it stays on the HUD for the
+      // whole stretch of road it applies to instead of disappearing the
+      // instant the vehicle drives past the sign.
+      final activeLimit = _navigationRoute == null
+          ? null
+          : _trafficEngine.activeSpeedLimit(
+              signs: signs,
+              route: _navigationRoute!.geometry,
+              vehicleRouteProgressMeters: _navigationState?.routeProgressMeters,
+            );
       if (!mounted) return;
-      setState(() { _relevantTrafficSigns = relevant.take(3).toList(growable: false); });
+      setState(() {
+        _relevantTrafficSigns = relevant.take(3).toList(growable: false);
+        _activeSpeedLimitKmh = activeLimit;
+      });
     } catch (_) {}
   }
 
@@ -307,7 +322,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
         ),
         if(showRpm)Positioned(top:navigationActive?8:(compact?8:42),left:0,right:0,child:Center(child:RpmIndicator(rpm:_rpm,theme:_theme,style:_theme.rpmStyle,animate:widget.settings.animations))),
         if(_relevantTrafficSigns.isNotEmpty)Positioned(left:14,top:0,bottom:0,child:Center(child:_TrafficSignRail(signs:gtEnabled&&!gtSpec.showFullSignRail?_relevantTrafficSigns.take(1).toList(growable:false):_relevantTrafficSigns,theme:_theme))),
-        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,message:_navigationMessage,style:_style,compact:gtEnabled&&gtSpec.compactNavigation,verticalOffset:gtEnabled&&widget.settings.gtLayout==GtLayout.touring?-28:0,showEta:!gtEnabled||gtSpec.showEta,showRoadName:!gtEnabled||gtSpec.showRoadName),
+        if(navigationActive)NavigationHudOverlay(state:_navigationState!,accent:_theme.accent,secondary:_theme.secondary,trafficSign:_relevantTrafficSigns.isNotEmpty?_relevantTrafficSigns.first:null,message:_navigationMessage,style:_style,compact:gtEnabled&&gtSpec.compactNavigation,verticalOffset:gtEnabled&&widget.settings.gtLayout==GtLayout.touring?-28:0,showEta:!gtEnabled||gtSpec.showEta,showRoadName:!gtEnabled||gtSpec.showRoadName),
+        if(_activeSpeedLimitKmh!=null)Positioned(right:18,top:60,child:_SpeedLimitBadge(limitKmh:_activeSpeedLimitKmh!,currentSpeedKmh:_speed,theme:_theme)),
         Positioned(left:18,top:14,child:GestureDetector(onTap:_showGpsDiagnostics,child:Row(children:[Icon(_gpsStale?Icons.gps_off:Icons.gps_fixed,size:15,color:_gpsStale?Colors.redAccent:_theme.secondary),const SizedBox(width:6),Text(_gpsStale?'GPS LOST':'GPS LOCK',style:TextStyle(color:_gpsStale?Colors.redAccent:_theme.secondary,fontSize:12,fontWeight:FontWeight.w700)),const SizedBox(width:6),Text(_gpsService.status,style:TextStyle(color:_theme.secondary,fontSize:10))]))),
         Positioned(left:18,top:34,child:Row(children:[
           Icon(_sourceIcon(_fusion.source),size:13,color:_sourceColor(_fusion.source,_theme)),
@@ -330,6 +346,8 @@ class _HudScreenState extends State<HudScreen> with WidgetsBindingObserver {
               theme: _theme,
               nextManeuver: _navigationState!.nextManeuver,
               compact: widget.settings.gtLayout == GtLayout.touring,
+              headingDegrees: _lastHeading,
+              speedKmh: _speed,
             ),
           ),
         if(!_ready)Center(child:Text('STARTING SENSORS...',style:TextStyle(color:_theme.secondary))),
@@ -420,6 +438,33 @@ class _TrafficSignItem extends StatelessWidget {
   const _TrafficSignItem({required this.sign,required this.theme});final RelevantTrafficSign sign;final HudTheme theme;
   @override Widget build(BuildContext context){final label=switch(sign.sign.type){TrafficSignType.stop=>'STOP',TrafficSignType.giveWay=>'GIVE',TrafficSignType.speedLimit=>sign.sign.value==null?'SPEED':'${sign.sign.value}',TrafficSignType.trafficSignals=>'LIGHT',TrafficSignType.roundabout=>'ROUND',TrafficSignType.crossing=>'CROSS',TrafficSignType.motorway=>'M-WAY',TrafficSignType.oneWay=>'1-WAY',TrafficSignType.unknown=>'ROAD',};final icon=switch(sign.sign.type){TrafficSignType.stop=>Icons.stop_circle,TrafficSignType.giveWay=>Icons.change_history,TrafficSignType.speedLimit=>Icons.speed,TrafficSignType.trafficSignals=>Icons.traffic,TrafficSignType.roundabout=>Icons.roundabout_left,TrafficSignType.crossing=>Icons.person,TrafficSignType.motorway=>Icons.directions_car,TrafficSignType.oneWay=>Icons.arrow_forward,TrafficSignType.unknown=>Icons.info_outline,};return Column(mainAxisSize:MainAxisSize.min,children:[Icon(icon,color:theme.accent,size:27),const SizedBox(height:2),Text(label,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:theme.accent,fontSize:8,fontWeight:FontWeight.w900)),Text('${sign.distanceMeters.round()}m',style:TextStyle(color:theme.secondary,fontSize:8,fontWeight:FontWeight.w700))]);}
 }
+/// Persistent speed-limit sign, styled after the European circular
+/// maxspeed sign. Unlike the traffic-sign rail (which only shows signs
+/// still ahead on the road), this stays on screen for the whole stretch
+/// the limit applies to and turns red once the driver is over it.
+class _SpeedLimitBadge extends StatelessWidget {
+  const _SpeedLimitBadge({required this.limitKmh, required this.currentSpeedKmh, required this.theme});
+  final int limitKmh;
+  final double currentSpeedKmh;
+  final HudTheme theme;
+  @override
+  Widget build(BuildContext context) {
+    final over = currentSpeedKmh > limitKmh + 5;
+    return Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(color: over ? Colors.redAccent : const Color(0xFFCC0000), width: 4),
+        boxShadow: over ? [BoxShadow(color: Colors.redAccent.withValues(alpha: .6), blurRadius: 10)] : const [],
+      ),
+      child: Text('$limitKmh', style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w900)),
+    );
+  }
+}
+
 class _Metric extends StatelessWidget {
   const _Metric(this.label,this.value);final String label,value;
   @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:const TextStyle(fontSize:10)),Text(value,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w700))]);
