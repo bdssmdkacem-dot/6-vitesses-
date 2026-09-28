@@ -87,7 +87,7 @@ class _GtRoutePainter extends CustomPainter {
   void _paintFollowing(Canvas canvas, Size size, LatLng vehicle) {
     final metersPerPixel = (_aheadMeters + _behindMeters) / size.height;
     final headingRad = headingDegrees * math.pi / 180.0;
-    final cosH = math.cos(-headingRad), sinH = math.sin(-headingRad);
+    final cosH = math.cos(headingRad), sinH = math.sin(headingRad);
     final anchor = Offset(size.width / 2, size.height * 0.72);
 
     Offset project(LatLng p) {
