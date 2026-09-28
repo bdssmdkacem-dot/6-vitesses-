@@ -202,8 +202,9 @@ jobs:
           from pathlib import Path
           p = Path("android/app/build.gradle.kts")
           s = p.read_text()
+          s = "import java.util.Properties\n" + s
           if 'signingConfig = signingConfigs.getByName("release")' not in s:
-              s = s.replace('    buildTypes {', '    signingConfigs {\n        create("release") {\n            val props = java.util.Properties()\n            val propsFile = rootProject.file("key.properties")\n            propsFile.inputStream().use { props.load(it) }\n            storeFile = rootProject.file(props["storeFile"].toString())\n            storePassword = props["storePassword"].toString()\n            keyAlias = props["keyAlias"].toString()\n            keyPassword = props["keyPassword"].toString()\n        }\n    }\n\n    buildTypes {', 1)
+              s = s.replace('    buildTypes {', '    signingConfigs {\n        create("release") {\n            val props = Properties()\n            val propsFile = rootProject.file("key.properties")\n            propsFile.inputStream().use { props.load(it) }\n            storeFile = rootProject.file(props["storeFile"].toString())\n            storePassword = props["storePassword"].toString()\n            keyAlias = props["keyAlias"].toString()\n            keyPassword = props["keyPassword"].toString()\n        }\n    }\n\n    buildTypes {', 1)
               s = s.replace('        release {', '        release {\n            signingConfig = signingConfigs.getByName("release")', 1)
               p.write_text(s)
           PY
