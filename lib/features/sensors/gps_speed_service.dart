@@ -58,6 +58,7 @@ class GpsSpeedService {
   String _status = 'STARTING';
   String? _lastError;
   int _jumpRejections = 0;
+  double? _filteredHeading;
 
   Stream<GpsSample> get samples => _controller.stream;
   bool get isStale =>
@@ -271,6 +272,14 @@ class GpsSpeedService {
 
     final speedConfidence =
         (1.0 - (position.accuracy / maxAccuracyMeters)).clamp(0.0, 1.0);
+
+    final rawHeading = position.heading;
+    if (speed >= 5 && rawHeading.isFinite && rawHeading >= 0 &&
+        rawHeading < 360 && position.headingAccuracy.isFinite &&
+        position.headingAccuracy <= 45) {
+      _filteredHeading = _smoothHeading(_filteredHeading, rawHeading, 0.25);
+    }
+    final heading = _filteredHeading ?? (rawHeading.isFinite ? rawHeading : 0);
     _controller.add(
       GpsSample(
         speedKmh: speed,
@@ -279,7 +288,7 @@ class GpsSpeedService {
         timestamp: now,
         isStale: false,
         position: LatLng(position.latitude, position.longitude),
-        headingDegrees: position.heading,
+        headingDegrees: heading,
         speedConfidence: speedConfidence,
       ),
     );
@@ -299,6 +308,12 @@ class GpsSpeedService {
         speedConfidence: 0,
       ),
     );
+  }
+
+  double _smoothHeading(double? previous, double current, double factor) {
+    if (previous == null) return current;
+    final delta = ((current - previous + 540) % 360) - 180;
+    return (previous + delta * factor + 360) % 360;
   }
 
   double _median(Iterable<double> values) {
