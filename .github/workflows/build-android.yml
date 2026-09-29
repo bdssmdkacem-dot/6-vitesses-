@@ -266,6 +266,39 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Remove unnecessary foreground-service permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+
+          # This app uses location only while its visible Activity is in use.
+          # geolocator declares foreground-service location permission in its
+          # plugin manifest, so explicitly remove it from the merged app.
+          if 'xmlns:tools=' not in s:
+              s = s.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android"',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\\n    xmlns:tools="http://schemas.android.com/tools"',
+                  1,
+              )
+
+          removals = [
+              "android.permission.FOREGROUND_SERVICE",
+              "android.permission.FOREGROUND_SERVICE_LOCATION",
+          ]
+          for name in removals:
+              tag = f'<uses-permission android:name="{name}" tools:node="remove"/>'
+              if tag not in s:
+                  s = s.replace(
+                      '<application',
+                      f'    {tag}\\n    <application',
+                      1,
+                  )
+          p.write_text(s)
+          print("Foreground-service permissions explicitly removed for this foreground-only app.")
+          PY
+
       - name: Generate launcher icon
         run: dart run flutter_launcher_icons
 
