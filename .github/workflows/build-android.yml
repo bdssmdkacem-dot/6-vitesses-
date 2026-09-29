@@ -181,6 +181,7 @@ jobs:
                   keyAlias = props["keyAlias"].toString()
                   keyPassword = props["keyPassword"].toString()
               }
+          }
 
           buildTypes {""", 1)
           if 'signingConfig = signingConfigs.getByName("release")' not in s:
