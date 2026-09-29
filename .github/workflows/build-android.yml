@@ -27,6 +27,37 @@ jobs:
       - name: Generate Android project
         run: flutter create . --platforms=android --project-name=six_vitesses --org=com.sixvitesses
 
+      - name: Set automatic Android version code
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          test -n "$VERSION_CODE"
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          p = Path("pubspec.yaml")
+          s = p.read_text()
+          version_code = int(os.environ["VERSION_CODE"])
+          m = re.search(r"(?m)^version:\s*([^+\s]+)(?:\+(\d+))?\s*$", s)
+          if not m:
+              raise SystemExit("ERROR: pubspec.yaml version field not found")
+
+          version_name = m.group(1)
+          old_code = int(m.group(2) or "0")
+          new_code = max(old_code + 1, version_code)
+          new_version = f"version: {version_name}+{new_code}"
+          s = s[:m.start()] + new_version + s[m.end():]
+          p.write_text(s)
+
+          print(f"Version name: {version_name}")
+          print(f"Previous versionCode: {old_code}")
+          print(f"Automatic versionCode: {new_code}")
+          PY
+
+          grep -n '^version:' pubspec.yaml
+
       - name: Add location permissions
         run: |
           python3 - <<'PY'
