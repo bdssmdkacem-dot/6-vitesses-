@@ -285,7 +285,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          test -f build/app/outputs/bundle/release/app-release.aab
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
           EXPECTED_SHA1="03:E1:62:FC:E3:CA:17:05:83:B8:E3:E7:8D:BF:09:D9:0D:29:3A:4E"
           EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
 
