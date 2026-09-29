@@ -264,18 +264,46 @@ jobs:
       - name: Build AAB
         run: flutter build appbundle --release
 
+      - name: Sign release AAB explicitly
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+
+          # Flutter/AGP may leave the generated AAB signed with another key.
+          # Remove any existing JAR signatures, then sign the final bundle
+          # explicitly with the verified Play upload keystore.
+          zip -d "$AAB" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' || true
+
+          jarsigner             -keystore release-keystore.jks             -storepass "$KEYSTORE_PASSWORD"             -keypass "$KEY_PASSWORD"             -sigalg SHA256withRSA             -digestalg SHA-256             "$AAB"             "$KEY_ALIAS"
+
       - name: Verify AAB signing certificate
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           test -f build/app/outputs/bundle/release/app-release.aab
           EXPECTED_SHA1="03:E1:62:FC:E3:CA:17:05:83:B8:E3:E7:8D:BF:09:D9:0D:29:3A:4E"
+          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
+
+          # Verify the actual certificate embedded in the final AAB.
           ACTUAL_AAB_SHA1=$(keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab |
             awk -F': ' '/SHA1:/{print $2; exit}')
-          ACTUAL_AAB_SHA1=$(echo "$ACTUAL_AAB_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')
-          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')
+          ACTUAL_AAB_SHA1=$(echo "$ACTUAL_AAB_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
+
           echo "AAB SHA1:      $ACTUAL_AAB_SHA1"
           echo "Expected SHA1: $EXPECTED_SHA1"
           test -n "$ACTUAL_AAB_SHA1"
           test "$ACTUAL_AAB_SHA1" = "$EXPECTED_SHA1"
+
+          jarsigner -verify -verbose -certs "$AAB" >/dev/null 2>&1 || {
+            echo "ERROR: jarsigner verification failed."
+            exit 1
+          }
+
           echo "AAB signing certificate matches the required Play certificate."
 
       - name: Upload APK
