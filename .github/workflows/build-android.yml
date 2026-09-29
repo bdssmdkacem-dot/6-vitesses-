@@ -332,6 +332,11 @@ jobs:
           grep -q "android.permission.ACCESS_COARSE_LOCATION" /tmp/apk-permissions.txt
           grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
+          if grep -qE "android.permission.FOREGROUND_SERVICE(_LOCATION)?($|[^A-Z_])" /tmp/apk-permissions.txt; then
+            echo "ERROR: foreground-service permission is still present in the release APK."
+            exit 1
+          fi
+          echo "Verified: no foreground-service permissions are packaged."
 
       - name: Build AAB
         run: flutter build appbundle --release
