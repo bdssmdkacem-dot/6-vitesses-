@@ -217,8 +217,14 @@ jobs:
           buildTypes {""", 1)
           # Flutter's generated template may assign the debug key to release.
           # Replace that assignment so release/AAB builds use the verified keystore.
+          # Flutter 3.41.x may generate either debug signing syntax.
+          # Replace both forms so the release build can never fall back to debug.
           s = s.replace(
               'signingConfig = signingConfigs.debug',
+              'signingConfig = signingConfigs.getByName("release")'
+          )
+          s = s.replace(
+              'signingConfig = signingConfigs.getByName("debug")',
               'signingConfig = signingConfigs.getByName("release")'
           )
           if 'signingConfig = signingConfigs.getByName("release")' not in s:
@@ -230,11 +236,13 @@ jobs:
       - name: Verify Gradle release signing configuration
         run: |
           grep -n -A12 -B2 'release {' android/app/build.gradle.kts
-          if grep -q 'signingConfig = signingConfigs.debug' android/app/build.gradle.kts; then
+          if grep -qE 'signingConfig = signingConfigs\.(debug|getByName\("debug"\))' android/app/build.gradle.kts; then
             echo "ERROR: release build still references the debug signing key."
             exit 1
           fi
-          grep -q 'signingConfig = signingConfigs.getByName("release")' android/app/build.gradle.kts
+          RELEASE_SIGNING_COUNT=$(grep -c 'signingConfig = signingConfigs.getByName("release")' android/app/build.gradle.kts || true)
+          test "$RELEASE_SIGNING_COUNT" -ge 1
+          echo "Release signing config is enforced; debug signing is absent."
 
       - name: Verify keystore certificate before build
         env:
