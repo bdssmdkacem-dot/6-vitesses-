@@ -201,9 +201,9 @@ jobs:
             -storepass "$KEYSTORE_PASSWORD" \
             -alias "$KEY_ALIAS" |
             awk -F': ' '/Certificate fingerprints:/{f=1;next} f && /SHA1:/{print $2; exit}')
-          ACTUAL_KEYSTORE_SHA1=$(echo "$ACTUAL_KEYSTORE_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')
+          ACTUAL_KEYSTORE_SHA1=$(echo "$ACTUAL_KEYSTORE_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
           EXPECTED_SHA1="03:E1:62:FC:E3:CA:17:05:83:B8:E3:E7:8D:BF:09:D9:0D:29:3A:4E"
-          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr -d ':')
+          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
           echo "Keystore SHA1: $ACTUAL_KEYSTORE_SHA1"
           echo "Expected SHA1:  $EXPECTED_SHA1"
           test -n "$ACTUAL_KEYSTORE_SHA1"
