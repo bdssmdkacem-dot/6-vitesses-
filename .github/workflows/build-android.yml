@@ -149,6 +149,65 @@ jobs:
           test -n "$KEY_PASSWORD"
           echo "$KEYSTORE_BASE64" | base64 --decode > release-keystore.jks
 
+      - name: Configure Gradle release signing
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          test -f release-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=../release-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          if "import java.util.Properties" not in s:
+              s = "import java.util.Properties\n" + s
+          if 'create("release")' not in s:
+              s = s.replace("    buildTypes {", """    signingConfigs {
+              create("release") {
+                  val props = Properties()
+                  val propsFile = rootProject.file("key.properties")
+                  require(propsFile.isFile) { "android/key.properties is missing" }
+                  propsFile.inputStream().use { props.load(it) }
+                  storeFile = rootProject.file(props["storeFile"].toString())
+                  storePassword = props["storePassword"].toString()
+                  keyAlias = props["keyAlias"].toString()
+                  keyPassword = props["keyPassword"].toString()
+              }
+
+          buildTypes {""", 1)
+          if 'signingConfig = signingConfigs.getByName("release")' not in s:
+              s = s.replace("        release {", """        release {
+              signingConfig = signingConfigs.getByName("release")""", 1)
+          p.write_text(s)
+          PY
+
+      - name: Verify keystore certificate before build
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          test -f release-keystore.jks
+          ACTUAL_KEYSTORE_SHA1=$(keytool -list -v \
+            -keystore release-keystore.jks \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias "$KEY_ALIAS" |
+            awk -F': ' '/Certificate fingerprints:/{f=1;next} f && /SHA1:/{print $2; exit}')
+          ACTUAL_KEYSTORE_SHA1=$(echo "$ACTUAL_KEYSTORE_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')
+          EXPECTED_SHA1="03:E1:62:FC:E3:CA:17:05:83:B8:E3:E7:8D:BF:09:D9:0D:29:3A:4E"
+          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr -d ':')
+          echo "Keystore SHA1: $ACTUAL_KEYSTORE_SHA1"
+          echo "Expected SHA1:  $EXPECTED_SHA1"
+          test -n "$ACTUAL_KEYSTORE_SHA1"
+          test "$ACTUAL_KEYSTORE_SHA1" = "$EXPECTED_SHA1"
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -186,39 +245,23 @@ jobs:
           grep -q "android.permission.INTERNET" /tmp/apk-permissions.txt
           grep -q "android.permission.ACCESS_NETWORK_STATE" /tmp/apk-permissions.txt
 
-      - name: Configure Gradle release signing
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          cat > android/key.properties <<EOF
-          storeFile=../release-keystore.jks
-          storePassword=$KEYSTORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEY_PASSWORD
-          EOF
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("android/app/build.gradle.kts")
-          s = p.read_text()
-          s = "import java.util.Properties\n" + s
-          if 'signingConfig = signingConfigs.getByName("release")' not in s:
-              s = s.replace('    buildTypes {', '    signingConfigs {\n        create("release") {\n            val props = Properties()\n            val propsFile = rootProject.file("key.properties")\n            propsFile.inputStream().use { props.load(it) }\n            storeFile = rootProject.file(props["storeFile"].toString())\n            storePassword = props["storePassword"].toString()\n            keyAlias = props["keyAlias"].toString()\n            keyPassword = props["keyPassword"].toString()\n        }\n    }\n\n    buildTypes {', 1)
-              s = s.replace('        release {', '        release {\n            signingConfig = signingConfigs.getByName("release")', 1)
-              p.write_text(s)
-          PY
-
       - name: Build AAB
         run: flutter build appbundle --release
 
       - name: Verify AAB signing certificate
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab | grep -E "X.509|SHA1"
-          ACTUAL_SHA1=$(jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab 2>&1 | awk '/SHA1:/{print $2; exit}')
-          echo "AAB certificate SHA1: $ACTUAL_SHA1"
+          test -f build/app/outputs/bundle/release/app-release.aab
+          EXPECTED_SHA1="03:E1:62:FC:E3:CA:17:05:83:B8:E3:E7:8D:BF:09:D9:0D:29:3A:4E"
+          ACTUAL_AAB_SHA1=$(keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab |
+            awk -F': ' '/SHA1:/{print $2; exit}')
+          ACTUAL_AAB_SHA1=$(echo "$ACTUAL_AAB_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')
+          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')
+          echo "AAB SHA1:      $ACTUAL_AAB_SHA1"
+          echo "Expected SHA1: $EXPECTED_SHA1"
+          test -n "$ACTUAL_AAB_SHA1"
+          test "$ACTUAL_AAB_SHA1" = "$EXPECTED_SHA1"
+          echo "AAB signing certificate matches the required Play certificate."
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
