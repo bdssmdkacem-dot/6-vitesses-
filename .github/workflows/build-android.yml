@@ -346,6 +346,40 @@ jobs:
 
           echo "AAB signing certificate matches the required Play certificate."
 
+      - name: Verify APK generated directly from AAB
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          EXPECTED_SHA1="03:E1:62:FC:E3:CA:17:05:83:B8:E3:E7:8D:BF:09:D9:0D:29:3A:4E"
+          EXPECTED_SHA1=$(echo "$EXPECTED_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
+          BUNDLETOOL_VERSION="1.18.1"
+          curl -fsSL -o /tmp/bundletool.jar \
+            "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar"
+          java -jar /tmp/bundletool.jar validate --bundle="$AAB"
+          rm -rf /tmp/aab-apks /tmp/aab-apks-unpacked && mkdir -p /tmp/aab-apks-unpacked
+          java -jar /tmp/bundletool.jar build-apks \
+            --bundle="$AAB" \
+            --output=/tmp/aab-apks/app.apks \
+            --mode=universal \
+            --ks=release-keystore.jks \
+            --ks-pass=pass:"$KEYSTORE_PASSWORD" \
+            --ks-key-alias="$KEY_ALIAS" \
+            --key-pass=pass:"$KEY_PASSWORD" \
+            --overwrite
+          unzip -q /tmp/aab-apks/app.apks -d /tmp/aab-apks-unpacked
+          test -f /tmp/aab-apks-unpacked/universal.apk
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs /tmp/aab-apks-unpacked/universal.apk | tee /tmp/aab-apk-cert.txt
+          ACTUAL_APK_SHA1=$(awk -F': ' '/Signer #1 certificate SHA-1 digest:/{print $2; exit}' /tmp/aab-apk-cert.txt)
+          ACTUAL_APK_SHA1=$(echo "$ACTUAL_APK_SHA1" | tr '[:lower:]' '[:upper:]' | tr -d ':[:space:]')
+          echo "Generated APK SHA1: $ACTUAL_APK_SHA1"
+          echo "Expected SHA1:      $EXPECTED_SHA1"
+          test -n "$ACTUAL_APK_SHA1" && test "$ACTUAL_APK_SHA1" = "$EXPECTED_SHA1"
+          echo "AAB -> APK certificate verification passed."
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
