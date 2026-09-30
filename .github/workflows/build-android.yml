@@ -384,6 +384,25 @@ jobs:
 
           echo "AAB signing certificate matches the required Play certificate."
 
+      - name: Verify AAB manifest permissions
+        run: |
+          set -euo pipefail
+          AAB="build/app/outputs/bundle/release/app-release.aab"
+          BUNDLETOOL_VERSION="1.18.1"
+          curl -fsSL -o /tmp/bundletool.jar \
+            "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar"
+          java -jar /tmp/bundletool.jar validate --bundle="$AAB"
+          java -jar /tmp/bundletool.jar dump manifest --bundle="$AAB" > /tmp/aab-manifest.xml
+          grep -q 'android.permission.ACCESS_FINE_LOCATION' /tmp/aab-manifest.xml
+          grep -q 'android.permission.ACCESS_COARSE_LOCATION' /tmp/aab-manifest.xml
+          grep -q 'android.permission.INTERNET' /tmp/aab-manifest.xml
+          grep -q 'android.permission.ACCESS_NETWORK_STATE' /tmp/aab-manifest.xml
+          if grep -qE 'android.permission.FOREGROUND_SERVICE(_LOCATION)?($|[^A-Z_])' /tmp/aab-manifest.xml; then
+            echo "ERROR: foreground-service permission is still present in the final AAB manifest."
+            exit 1
+          fi
+          echo "Verified: final AAB manifest contains no foreground-service permissions."
+
       - name: Verify APK generated directly from AAB
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
